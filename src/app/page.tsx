@@ -1,103 +1,130 @@
-import Image from "next/image";
+'use client'; // This is important for client-side hooks like useState, useEffect, Link
+
+import React, { useState, useEffect } from 'react';
+import Link from 'next/link'; // Use next/link for client-side navigation
+import { getPokemonList, getPokemonByUrl, Pokemon, getGenerations, GenerationListItem } from '../lib/pokeapi'; // Adjust path as needed
+import { useTheme } from './ThemeContext';
+import PokemonCard from './components/PokemonCard'; // Import the new component
+import Header from './components/Header'; // Import the Header component
+import GenerationFilter from './components/GenerationFilter'; // Import the GenerationFilter component
+import PaginationControls from './components/PaginationControls'; // Import the PaginationControls component
+
+const PokemonListPage: React.FC = () => {
+  const [pokemonList, setPokemonList] = useState<Pokemon[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+  const [offset, setOffset] = useState<number>(0);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [generations, setGenerations] = useState<GenerationListItem[]>([]); // New state for generations
+  const [selectedGeneration, setSelectedGeneration] = useState<string>(''); // New state for selected generation
+  const limit = 20;
+
+  useEffect(() => {
+    const fetchGenerations = async () => {
+      try {
+        const response = await getGenerations();
+        setGenerations(response.results);
+      } catch (err) {
+        console.error('Failed to fetch generations:', err);
+      }
+    };
+    fetchGenerations();
+  }, []); // Fetch generations only once on mount
+
+  useEffect(() => {
+    const fetchPokemon = async () => {
+      try {
+        setLoading(true);
+        let listResponse;
+        if (selectedGeneration) {
+          // Extract generation ID from URL (e.g., "https://pokeapi.co/api/v2/generation/1/")
+          const match = selectedGeneration.match(/\/generation\/(\d+)\//);
+          const generationId = match ? parseInt(match[1]) : NaN;
+          if (!isNaN(generationId)) { // Ensure generationId is a valid number
+            listResponse = await getPokemonList(offset, limit, generationId);
+          } else {
+            // Fallback to all pokemon if generationId is invalid
+            listResponse = await getPokemonList(offset, limit);
+          }
+        } else {
+          listResponse = await getPokemonList(offset, limit);
+        }
+        setTotalCount(listResponse.count);
+
+        const detailedPokemonPromises = listResponse.results.map(async (p) => {
+          const details = await getPokemonByUrl<Pokemon>(p.url);
+          return details;
+        });
+        const detailedPokemon = await Promise.all(detailedPokemonPromises);
+
+        setPokemonList(detailedPokemon);
+        setError(null);
+      } catch (err) {
+        setError('Failed to fetch Pokémon list.');
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPokemon();
+  }, [offset, selectedGeneration]); // Added selectedGeneration to dependencies
+
+  const handleNextPage = () => {
+    if (offset + limit < totalCount) {
+      setOffset(prevOffset => prevOffset + limit);
+    }
+  };
+
+  const handlePrevPage = () => {
+    if (offset > 0) {
+      setOffset(prevOffset => prevOffset - limit);
+    }
+    };
+
+  if (loading) {
+    return <div className="flex justify-center items-center min-h-screen text-xl">Loading Pokémon...</div>;
+  }
+
+  if (error) {
+    return <div className="text-red-500 text-center text-xl mt-10">Error: {error}</div>;
+  }
+
+  return (
+    <div className="container mx-auto p-4">
+      <h1 className="text-4xl font-bold text-center mb-8">Pokédex</h1>
+
+      <GenerationFilter
+        generations={generations}
+        selectedGeneration={selectedGeneration}
+        onSelectGeneration={(value) => {
+          setSelectedGeneration(value);
+          setOffset(0); // Reset offset when generation changes
+        }}
+      />
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        {pokemonList.map(pokemon => (
+          <PokemonCard key={pokemon.name} pokemon={pokemon} />
+        ))}
+      </div>
+      <PaginationControls
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        disablePrev={offset === 0 || loading}
+        disableNext={offset + limit >= totalCount || loading}
+      />
+    </div>
+  );
+};
 
 export default function Home() {
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
+    <>
+      <Header />
+      <main className="container mx-auto py-8">
+        <PokemonListPage />
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+    </>
   );
 }
