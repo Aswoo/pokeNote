@@ -1,13 +1,17 @@
-'use client'; // This is important for client-side hooks like useState, useEffect, Link
+"use client"; // This is important for client-side hooks like useState, useEffect, Link
 
-import React, { useState, useEffect } from 'react';
-import Link from 'next/link'; // Use next/link for client-side navigation
-import { getPokemonList, getPokemonByUrl, Pokemon, getGenerations, GenerationListItem } from '../lib/pokeapi'; // Adjust path as needed
-import { useTheme } from './ThemeContext';
-import PokemonCard from './components/PokemonCard'; // Import the new component
-import Header from './components/Header'; // Import the Header component
-import GenerationFilter from './components/GenerationFilter'; // Import the GenerationFilter component
-import PaginationControls from './components/PaginationControls'; // Import the PaginationControls component
+import React, { useState, useEffect } from "react";
+import {
+  getPokemonList,
+  getPokemonByUrl,
+  Pokemon,
+  getGenerations,
+  GenerationListItem,
+} from "../lib/pokeapi"; // Adjust path as needed
+import PokemonCard from "./components/PokemonCard"; // Import the new component
+import Header from "./components/Header"; // Import the Header component
+import GenerationFilter from "./components/GenerationFilter"; // Import the GenerationFilter component
+import PaginationControls from "./components/PaginationControls"; // Import the PaginationControls component
 
 const PokemonListPage: React.FC = () => {
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([]);
@@ -16,7 +20,7 @@ const PokemonListPage: React.FC = () => {
   const [offset, setOffset] = useState<number>(0);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [generations, setGenerations] = useState<GenerationListItem[]>([]); // New state for generations
-  const [selectedGeneration, setSelectedGeneration] = useState<string>(''); // New state for selected generation
+  const [selectedGeneration, setSelectedGeneration] = useState<string>(""); // New state for selected generation
   const limit = 20;
 
   useEffect(() => {
@@ -25,7 +29,7 @@ const PokemonListPage: React.FC = () => {
         const response = await getGenerations();
         setGenerations(response.results);
       } catch (err) {
-        console.error('Failed to fetch generations:', err);
+        console.error("Failed to fetch generations:", err);
       }
     };
     fetchGenerations();
@@ -40,7 +44,8 @@ const PokemonListPage: React.FC = () => {
           // Extract generation ID from URL (e.g., "https://pokeapi.co/api/v2/generation/1/")
           const match = selectedGeneration.match(/\/generation\/(\d+)\//);
           const generationId = match ? parseInt(match[1]) : NaN;
-          if (!isNaN(generationId)) { // Ensure generationId is a valid number
+          if (!isNaN(generationId)) {
+            // Ensure generationId is a valid number
             listResponse = await getPokemonList(offset, limit, generationId);
           } else {
             // Fallback to all pokemon if generationId is invalid
@@ -60,7 +65,7 @@ const PokemonListPage: React.FC = () => {
         setPokemonList(detailedPokemon);
         setError(null);
       } catch (err) {
-        setError('Failed to fetch Pokémon list.');
+        setError("Failed to fetch Pokémon list.");
         console.error(err);
       } finally {
         setLoading(false);
@@ -72,22 +77,30 @@ const PokemonListPage: React.FC = () => {
 
   const handleNextPage = () => {
     if (offset + limit < totalCount) {
-      setOffset(prevOffset => prevOffset + limit);
+      setOffset((prevOffset) => prevOffset + limit);
     }
   };
 
   const handlePrevPage = () => {
     if (offset > 0) {
-      setOffset(prevOffset => prevOffset - limit);
+      setOffset((prevOffset) => prevOffset - limit);
     }
-    };
+  };
 
   if (loading) {
-    return <div className="flex justify-center items-center min-h-screen text-xl">Loading Pokémon...</div>;
+    return (
+      <div className="flex justify-center items-center min-h-screen text-xl">
+        Loading Pokémon...
+      </div>
+    );
   }
 
   if (error) {
-    return <div className="text-red-500 text-center text-xl mt-10">Error: {error}</div>;
+    return (
+      <div className="text-red-500 text-center text-xl mt-10">
+        Error: {error}
+      </div>
+    );
   }
 
   return (
@@ -104,7 +117,7 @@ const PokemonListPage: React.FC = () => {
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {pokemonList.map(pokemon => (
+        {pokemonList.map((pokemon) => (
           <PokemonCard key={pokemon.name} pokemon={pokemon} />
         ))}
       </div>
