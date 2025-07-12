@@ -58,12 +58,35 @@ export interface Pokemon {
   stats: PokemonStat[];
   abilities: PokemonAbility[];
   sprites: PokemonSprite;
+  species: {
+    url: string;
+  };
 }
 
 export interface PokemonSpecies {
   name: string;
   url: string;
 }
+
+export interface PokemonSpeciesDetails {
+  evolution_chain: {
+    url: string;
+  };
+}
+
+export interface EvolutionChainLink {
+  species: {
+    name: string;
+    url: string;
+  };
+  evolves_to: EvolutionChainLink[];
+}
+
+export interface EvolutionChain {
+  id: number;
+  chain: EvolutionChainLink;
+}
+
 
 export const getPokemonList = async (
   offset: number = 0,
@@ -110,6 +133,16 @@ export const getPokemonList = async (
 
 export const getPokemonDetails = async (nameOrId: string | number): Promise<Pokemon> => {
   const response = await axios.get<Pokemon>(`${API_BASE_URL}/pokemon/${nameOrId}`);
+  return response.data;
+};
+
+export const getPokemonSpecies = async (nameOrId: string | number): Promise<PokemonSpeciesDetails> => {
+  const response = await axios.get<PokemonSpeciesDetails>(`${API_BASE_URL}/pokemon-species/${nameOrId}`);
+  return response.data;
+};
+
+export const getEvolutionChain = async (url: string): Promise<EvolutionChain> => {
+  const response = await axios.get<EvolutionChain>(url);
   return response.data;
 };
 
