@@ -87,6 +87,26 @@ export interface EvolutionChain {
   chain: EvolutionChainLink;
 }
 
+// New interfaces for damage relations
+export interface DamageRelations {
+  double_damage_from: { name: string; url: string }[];
+  half_damage_from: { name: string; url: string }[];
+  no_damage_from: { name: string; url: string }[];
+}
+
+export interface TypeDetails {
+  name: string;
+  damage_relations: DamageRelations;
+}
+
+export interface PokemonWithDamageRelations extends Pokemon {
+  damageRelations: {
+    weaknesses: { name: string; multiplier: number }[];
+    resistances: { name: string; multiplier: number }[];
+    immunities: string[];
+  };
+}
+
 
 export const getPokemonList = async (
   offset: number = 0,
@@ -135,6 +155,64 @@ export const getPokemonDetails = async (nameOrId: string | number): Promise<Poke
   const response = await axios.get<Pokemon>(`${API_BASE_URL}/pokemon/${nameOrId}`);
   return response.data;
 };
+
+export const getPokemonDetailsWithDamageRelations = async (nameOrId: string | number): Promise<PokemonWithDamageRelations> => {
+  // 1. Get basic pokemon details
+  const pokemon = await getPokemonDetails(nameOrId);
+
+  // 2. Fetch details for each of the Pokémon's types
+  const typeDetailsPromises = pokemon.types.map(t => axios.get<TypeDetails>(t.type.url));
+  const typeDetailsResponses = await Promise.all(typeDetailsPromises);
+  const typesData = typeDetailsResponses.map(res => res.data);
+
+  // 3. Get a list of all types to calculate relations against
+  const allTypesResponse = await axios.get<{ results: { name: string }[] }>(`${API_BASE_URL}/type`);
+  const allTypeNames = allTypesResponse.data.results.map(t => t.name);
+
+  // 4. Calculate combined damage relations
+  const damageMultipliers: { [key: string]: number } = {};
+
+  allTypeNames.forEach(attackingType => {
+    let multiplier = 1;
+    typesData.forEach(defendingType => {
+      if (defendingType.damage_relations.double_damage_from.some(t => t.name === attackingType)) {
+        multiplier *= 2;
+      }
+      if (defendingType.damage_relations.half_damage_from.some(t => t.name === attackingType)) {
+        multiplier *= 0.5;
+      }
+      if (defendingType.damage_relations.no_damage_from.some(t => t.name === attackingType)) {
+        multiplier *= 0;
+      }
+    });
+    damageMultipliers[attackingType] = multiplier;
+  });
+
+  const weaknesses: { name: string, multiplier: number }[] = [];
+  const resistances: { name: string, multiplier: number }[] = [];
+  const immunities: string[] = [];
+
+  for (const type in damageMultipliers) {
+    const multiplier = damageMultipliers[type];
+    if (multiplier > 1) {
+      weaknesses.push({ name: type, multiplier });
+    } else if (multiplier < 1 && multiplier > 0) {
+      resistances.push({ name: type, multiplier });
+    } else if (multiplier === 0) {
+      immunities.push(type);
+    }
+  }
+
+  return {
+    ...pokemon,
+    damageRelations: {
+      weaknesses,
+      resistances,
+      immunities,
+    },
+  };
+};
+
 
 export const getPokemonSpecies = async (nameOrId: string | number): Promise<PokemonSpeciesDetails> => {
   const response = await axios.get<PokemonSpeciesDetails>(`${API_BASE_URL}/pokemon-species/${nameOrId}`);

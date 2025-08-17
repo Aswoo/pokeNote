@@ -8,7 +8,7 @@ interface ErrorProps {
   reset: () => void;
 }
 
-const PokemonDetailError: React.FC<ErrorProps> = ({ error, reset }) => {
+const PokemonDetailError = ({ error, reset }: ErrorProps) => {
   useEffect(() => {
     // 에러 리포팅 서비스에 로그를 전송할 수 있습니다. (e.g. Sentry)
     console.error(error);
