@@ -3,7 +3,7 @@
 import React from 'react';
 import { Chart as ChartJS, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, ChartData } from 'chart.js';
 import { Radar } from 'react-chartjs-2';
-import { PokemonStat } from '../../lib/pokeapi';
+import { PokemonStat } from '@/shared/api/pokeapi';
 
 ChartJS.register(RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend);
 

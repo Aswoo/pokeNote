@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Pokemon } from '../../lib/pokeapi'; // Adjust path as needed
+import { Pokemon } from '@/shared/api/pokeapi'; // Adjust path as needed
 
 interface PokemonCardProps {
   pokemon: Pokemon;

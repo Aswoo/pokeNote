@@ -1,5 +1,5 @@
 import React from "react";
-import { PokemonWithDamageRelations } from "../../lib/pokeapi";
+import { PokemonWithDamageRelations } from "@/shared/api/pokeapi";
 
 interface DamageRelationsDisplayProps {
   damageRelations: PokemonWithDamageRelations["damageRelations"];

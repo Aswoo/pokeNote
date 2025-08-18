@@ -6,12 +6,12 @@ import Image from 'next/image';
 import {
   PokemonWithDamageRelations,
   EvolutionChain,
-} from '../../lib/pokeapi';
-import EvolutionChainDisplay from './EvolutionChain';
-import DamageRelationsDisplay from './DamageRelationsDisplay';
-import StatRadarChart from './StatRadarChart';
-import Pokemon3DCard from './Pokemon3DCard';
-import PokemonCardFace from './PokemonCardFace'; // PokemonCardFace는 이제 3DCard 내부에서 사용
+} from '@/shared/api/pokeapi';
+import EvolutionChainDisplay from '@/entities/pokemon/ui/EvolutionChain';
+import DamageRelationsDisplay from '@/entities/pokemon/ui/DamageRelationsDisplay';
+import StatRadarChart from '@/entities/pokemon/ui/StatRadarChart';
+import Pokemon3DCard from '@/entities/pokemon/ui/Pokemon3DCard';
+import PokemonCardFace from '@/entities/pokemon/ui/PokemonCardFace'; // PokemonCardFace는 이제 3DCard 내부에서 사용
 
 interface ContentProps {
   pokemon: PokemonWithDamageRelations;

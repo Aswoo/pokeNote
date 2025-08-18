@@ -1,67 +1,80 @@
-"use client"; // This is important for client-side hooks like useState, useEffect, Link
+"use client";
 
 import React, { useState, useEffect } from "react";
-import {
-  getPokemonList,
-  getPokemonByUrl,
-  Pokemon,
-  getGenerations,
-  GenerationListItem,
-} from "../lib/pokeapi"; // Adjust path as needed
-import PokemonCard from "./components/PokemonCard"; // Import the new component
-import Header from "./components/Header"; // Import the Header component
-import GenerationFilter from "./components/GenerationFilter"; // Import the GenerationFilter component
-import PaginationControls from "./components/PaginationControls"; // Import the PaginationControls component
+import { Pokemon, GenerationListItem } from "../lib/pokeapi"; // 타입만 import
+import PokemonCard from "../entities/pokemon/ui/PokemonCard";
+import Header from "../widgets/header/Header";
+import GenerationFilter from "../features/filter-by-generation/GenerationFilter";
+import PaginationControls from "../features/pagination/PaginationControls";
 
-const PokemonListPage: React.FC = () => {
+// API 인터페이스 정의
+export interface PokemonApi {
+  getGenerations: () => Promise<{ results: GenerationListItem[] }>;
+  getPokemonList: (
+    offset: number,
+    limit: number,
+    generationId?: number
+  ) => Promise<{ count: number; results: { name: string; url: string }[] }>;
+  getPokemonByUrl: (url: string) => Promise<Pokemon>;
+}
+
+interface PokemonListPageProps {
+  api: PokemonApi;
+}
+
+export const PokemonListPage: React.FC<PokemonListPageProps> = ({ api }) => {
   const [pokemonList, setPokemonList] = useState<Pokemon[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [offset, setOffset] = useState<number>(0);
   const [totalCount, setTotalCount] = useState<number>(0);
-  const [generations, setGenerations] = useState<GenerationListItem[]>([]); // New state for generations
-  const [selectedGeneration, setSelectedGeneration] = useState<string>(""); // New state for selected generation
+  const [generations, setGenerations] = useState<GenerationListItem[]>([]);
+  const [selectedGeneration, setSelectedGeneration] = useState<string>("");
   const limit = 20;
 
+  // 세대 가져오기
   useEffect(() => {
     const fetchGenerations = async () => {
       try {
-        const response = await getGenerations();
+        const response = await api.getGenerations();
         setGenerations(response.results);
       } catch (err) {
         console.error("Failed to fetch generations:", err);
       }
     };
     fetchGenerations();
-  }, []); // Fetch generations only once on mount
+  }, [api]);
 
+  // 포켓몬 목록 가져오기
   useEffect(() => {
     const fetchPokemon = async () => {
       try {
         setLoading(true);
+
         let listResponse;
         if (selectedGeneration) {
-          // Extract generation ID from URL (e.g., "https://pokeapi.co/api/v2/generation/1/")
           const match = selectedGeneration.match(/\/generation\/(\d+)\//);
           const generationId = match ? parseInt(match[1]) : NaN;
           if (!isNaN(generationId)) {
-            // Ensure generationId is a valid number
-            listResponse = await getPokemonList(offset, limit, generationId);
+            listResponse = await api.getPokemonList(
+              offset,
+              limit,
+              generationId
+            );
           } else {
-            // Fallback to all pokemon if generationId is invalid
-            listResponse = await getPokemonList(offset, limit);
+            listResponse = await api.getPokemonList(offset, limit);
           }
         } else {
-          listResponse = await getPokemonList(offset, limit);
+          listResponse = await api.getPokemonList(offset, limit);
         }
+
         setTotalCount(listResponse.count);
 
-        const detailedPokemonPromises = listResponse.results.map(async (p) => {
-          const details = await getPokemonByUrl<Pokemon>(p.url);
-          return details;
-        });
-        const detailedPokemon = await Promise.all(detailedPokemonPromises);
-
+        const detailedPokemon: Pokemon[] = await Promise.all(
+          listResponse.results.map(
+            async (p) => await api.getPokemonByUrl(p.url)
+          )
+        );
         setPokemonList(detailedPokemon);
         setError(null);
       } catch (err) {
@@ -73,35 +86,32 @@ const PokemonListPage: React.FC = () => {
     };
 
     fetchPokemon();
-  }, [offset, selectedGeneration]); // Added selectedGeneration to dependencies
+  }, [offset, selectedGeneration, api]);
 
   const handleNextPage = () => {
     if (offset + limit < totalCount) {
-      setOffset((prevOffset) => prevOffset + limit);
+      setOffset((prev) => prev + limit);
     }
   };
 
   const handlePrevPage = () => {
     if (offset > 0) {
-      setOffset((prevOffset) => prevOffset - limit);
+      setOffset((prev) => prev - limit);
     }
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="flex justify-center items-center min-h-screen text-xl">
         Loading Pokémon...
       </div>
     );
-  }
-
-  if (error) {
+  if (error)
     return (
       <div className="text-red-500 text-center text-xl mt-10">
         Error: {error}
       </div>
     );
-  }
 
   return (
     <div className="container mx-auto p-4">
@@ -112,7 +122,7 @@ const PokemonListPage: React.FC = () => {
         selectedGeneration={selectedGeneration}
         onSelectGeneration={(value) => {
           setSelectedGeneration(value);
-          setOffset(0); // Reset offset when generation changes
+          setOffset(0);
         }}
       />
 
@@ -121,6 +131,7 @@ const PokemonListPage: React.FC = () => {
           <PokemonCard key={pokemon.name} pokemon={pokemon} />
         ))}
       </div>
+
       <PaginationControls
         onPrevPage={handlePrevPage}
         onNextPage={handleNextPage}
@@ -131,12 +142,15 @@ const PokemonListPage: React.FC = () => {
   );
 };
 
+// Home 컴포넌트에서는 기본 API를 주입
+import * as apiModule from "../lib/pokeapi"; // 실제 API
+
 export default function Home() {
   return (
     <>
       <Header />
       <main className="container mx-auto py-8">
-        <PokemonListPage />
+        <PokemonListPage api={apiModule} />
       </main>
     </>
   );

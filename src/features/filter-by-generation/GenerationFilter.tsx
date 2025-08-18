@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { GenerationListItem } from '../../lib/pokeapi';
+import { GenerationListItem } from '@/shared/api/pokeapi';
 
 interface GenerationFilterProps {
   generations: GenerationListItem[];

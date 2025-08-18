@@ -1,6 +1,6 @@
 import React from 'react';
 import Image from 'next/image';
-import { PokemonWithDamageRelations } from '../../lib/pokeapi';
+import { PokemonWithDamageRelations } from '@/shared/api/pokeapi';
 
 interface PokemonCardFaceProps {
   pokemon: PokemonWithDamageRelations;

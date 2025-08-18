@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { useTheme } from '../ThemeContext';
+import { useTheme } from '@/shared/lib/ThemeContext';
 
 const Header: React.FC = () => {
   const { theme, toggleTheme } = useTheme();
