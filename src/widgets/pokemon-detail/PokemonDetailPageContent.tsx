@@ -1,8 +1,7 @@
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import {
   PokemonWithDamageRelations,
   EvolutionChain,
@@ -10,8 +9,7 @@ import {
 import EvolutionChainDisplay from '@/entities/pokemon/ui/EvolutionChain';
 import DamageRelationsDisplay from '@/entities/pokemon/ui/DamageRelationsDisplay';
 import StatRadarChart from '@/entities/pokemon/ui/StatRadarChart';
-import Pokemon3DCard from '@/entities/pokemon/ui/Pokemon3DCard';
-import PokemonCardFace from '@/entities/pokemon/ui/PokemonCardFace'; // PokemonCardFace는 이제 3DCard 내부에서 사용
+import { Pokemon3DViewer } from '@/entities/pokemon/ui/Pokemon3DViewer';
 
 interface ContentProps {
   pokemon: PokemonWithDamageRelations;
@@ -20,7 +18,6 @@ interface ContentProps {
 
 const PokemonDetailPageContent: React.FC<ContentProps> = ({ pokemon, evolutionChain }) => {
   'use client';
-  const [show3DCard, setShow3DCard] = useState(false);
 
   const formatName = (str: string) => {
     return str
@@ -29,11 +26,6 @@ const PokemonDetailPageContent: React.FC<ContentProps> = ({ pokemon, evolutionCh
       .join(' ');
   };
 
-  const officialArtwork =
-    pokemon.sprites.other?.['official-artwork']?.front_default;
-
-  console.log("Pokemon Image URL passed to 3D Card:", officialArtwork || pokemon.sprites.front_default || 'https://via.placeholder.com/250');
-
   return (
     <div className="container mx-auto p-4">
       <Link href="/" className="text-blue-500 hover:underline mb-4 inline-block">
@@ -41,25 +33,10 @@ const PokemonDetailPageContent: React.FC<ContentProps> = ({ pokemon, evolutionCh
       </Link>
 
       <div className="bg-white rounded-lg shadow-md p-6">
-        <div className="flex justify-end mb-4">
-            <button 
-                onClick={() => setShow3DCard(true)}
-                className="px-4 py-2 bg-blue-500 text-white font-bold rounded-lg hover:bg-blue-700 transition-colors"
-            >
-                View as 3D Card
-            </button>
-        </div>
-
         <div className="flex flex-col md:flex-row items-center md:items-start">
-          <div className="md:w-1/3 text-center mb-4 md:mb-0">
-            <Image
-              src={officialArtwork || pokemon.sprites.front_default || 'https://via.placeholder.com/250'}
-              alt={pokemon.name}
-              width={192}
-              height={192}
-              className="mx-auto object-contain"
-              priority
-            />
+          {/* 3D Viewer replaces the old Image component and button */}
+          <div className="md:w-1/3 text-center mb-4 md:mb-0" style={{ height: '250px' }}>
+            <Pokemon3DViewer pokemonId={pokemon.id} className="w-full h-full" />
           </div>
           <div className="md:w-2/3 md:pl-8">
             <h1 className="text-4xl font-bold capitalize mb-2">
@@ -122,10 +99,6 @@ const PokemonDetailPageContent: React.FC<ContentProps> = ({ pokemon, evolutionCh
           <DamageRelationsDisplay damageRelations={pokemon.damageRelations} />
         </div>
       </div>
-
-      {show3DCard && (
-        <Pokemon3DCard onClose={() => setShow3DCard(false)} pokemonImageUrl={officialArtwork || pokemon.sprites.front_default || 'https://via.placeholder.com/250'} />
-      )}
     </div>
   );
 };
