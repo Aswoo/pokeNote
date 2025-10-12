@@ -1,154 +1,133 @@
-🧩 Pokémon Viewer (Next.js & Tailwind CSS)
-PokeAPI의 데이터를 활용해 포켓몬 정보를 조회할 수 있는 웹 애플리케이션입니다.
-Next.js, TypeScript, Tailwind CSS를 기반으로 제작되었습니다.
+# 🧩 Pokémon Viewer
 
-🎯 주요 기능
-포켓몬 목록 페이지: 포켓몬의 이름과 이미지를 페이지 단위로 나누어 보여줍니다.
+**Pokémon Viewer**는 [PokeAPI](https://pokeapi.co/)의 데이터를 활용해 포켓몬 정보를 조회할 수 있는 **Next.js 기반 웹 애플리케이션**입니다.  
+**Next.js**, **TypeScript**, **Tailwind CSS**를 중심으로 제작되었습니다.
 
-포켓몬 상세 페이지: 선택한 포켓몬의 타입, 능력치, 기술 등의 상세 정보를 표시합니다.
+---
 
-기본 내비게이션: next/link, next/router를 활용한 리스트 ↔ 상세페이지 간의 자연스러운 전환
+## 🎯 주요 기능
 
-검색 기능: 포켓몬 이름으로 검색할 수 있습니다.
+- **포켓몬 목록 페이지**  
+  포켓몬의 이름과 이미지를 페이지 단위로 보여줍니다.
 
-반응형 디자인: Tailwind CSS를 활용해 다양한 화면 크기에 대응합니다.
+- **포켓몬 상세 페이지**  
+  선택한 포켓몬의 타입, 능력치, 기술 등 상세 정보를 제공합니다.
 
-동적 카드 스타일: 마우스를 올리면, 포켓몬 타입에 따라 카드 테두리와 그림자가 색상 반영됨
+- **기본 내비게이션**  
+  `next/link`, `next/router`를 활용한 리스트 ↔ 상세 페이지 간 자연스러운 전환
 
-세대별 필터: 드롭다운 메뉴로 포켓몬 세대를 선택하여 필터링 가능
+- **검색 기능**  
+  포켓몬 이름으로 손쉽게 검색
 
-🏗️ 프로젝트 구조 및 아키텍처
-Next.js App Router의 컴포넌트 기반 구조를 따릅니다:
+- **반응형 디자인**  
+  Tailwind CSS로 다양한 화면 크기 대응
 
-src/app/layout.tsx: 전역 스타일과 페이지 레이아웃 정의
+- **동적 카드 스타일**  
+  마우스를 올리면 포켓몬 타입에 따라 카드 테두리와 그림자 색상 변경
 
-src/app/page.tsx: 메인 포켓몬 목록 페이지. 세대 필터, 카드 스타일 포함
+- **세대별 필터**  
+  드롭다운 메뉴로 포켓몬 세대를 선택하여 필터링 가능
 
-src/app/pokemon/[name]/page.tsx: 개별 포켓몬 정보를 보여주는 동적 라우팅 페이지
+---
 
-src/components/: 재사용 가능한 UI 컴포넌트들 (Header.tsx, SearchBar.tsx 등)
+## 🏗️ 프로젝트 구조
 
-src/lib/pokeapi.ts: https://pokeapi.co/ API 연동, 데이터 요청/처리 로직 포함
+> **Next.js App Router 기반 컴포넌트 구조**
 
-src/app/globals.css: Tailwind CSS 지시어와 글로벌 스타일 정의. 포켓몬 타입 색상 변수 포함
+```
+src/
+ ├── app/
+ │   ├── layout.tsx                # 전역 스타일 및 레이아웃
+ │   ├── page.tsx                  # 메인 포켓몬 목록 페이지 (세대 필터, 카드 스타일 포함)
+ │   └── pokemon/[name]/page.tsx   # 개별 포켓몬 상세 페이지 (동적 라우팅)
+ │
+ ├── components/                   # 재사용 가능한 UI 컴포넌트
+ │   ├── Header.tsx
+ │   ├── SearchBar.tsx
+ │   └── PokemonCard.tsx
+ │
+ ├── lib/
+ │   └── pokeapi.ts                # PokeAPI 연동 및 데이터 처리 로직
+ │
+ ├── app/globals.css               # Tailwind CSS 지시어 및 글로벌 스타일 정의
+ │                                 # 포켓몬 타입 색상 변수 포함
+ │
+ ├── tailwind.config.ts            # Tailwind 설정
+ └── postcss.config.mjs            # PostCSS 설정
+```
 
-tailwind.config.ts, postcss.config.mjs: Tailwind 및 PostCSS 설정 파일
+---
 
-🚀 로컬 실행 방법
-프로젝트 디렉터리로 이동
+## 🚀 로컬 실행 방법
 
-bash
-복사
-편집
+```bash
+# 1️⃣ 프로젝트 디렉터리 이동
 cd /Users/sdu/sdu/pokeview
-의존성 설치
 
-bash
-복사
-편집
+# 2️⃣ 의존성 설치
 npm install
-개발 서버 실행
 
-bash
-복사
-편집
+# 3️⃣ 개발 서버 실행
 npm run dev
-→ 브라우저에서 http://localhost:3000으로 접속 가능
+```
 
-📅 향후 기능 개발 계획 (Task Planner)
-1. 타입별 필터링
-설명: 포켓몬의 주/부 타입별로 목록 필터링
+➡️ 브라우저에서 [http://localhost:3000](http://localhost:3000) 접속
 
-작업:
+---
 
-PokemonListPage.tsx에 UI(드롭다운 또는 체크박스) 추가
+## 🧭 향후 기능 개발 계획 (Task Planner)
 
-pokeapi.ts에 타입별 API 요청 로직 구현
+| 기능                        | 설명                                    | 주요 작업                                                    |
+| --------------------------- | --------------------------------------- | ------------------------------------------------------------ |
+| **타입별 필터링**           | 포켓몬의 주/부 타입으로 목록 필터링     | - `PokemonListPage.tsx`에 UI 추가<br>- `pokeapi.ts`에 타입별 API 요청 로직 구현<br>- 필터 결과 반영 |
+| **정렬 기능**               | ID, 이름, 능력치 등 기준으로 정렬       | - 정렬 UI 추가<br>- 클라이언트 또는 API 정렬 구현            |
+| **다크 모드**               | 라이트/다크 테마 토글 지원              | - `next-themes` 적용<br>- Header에 토글 버튼 추가<br>- Tailwind 다크 모드 스타일 적용 |
+| **유저 팀/즐겨찾기**        | 포켓몬을 저장하여 팀 구성 또는 즐겨찾기 | - LocalStorage 또는 간단한 백엔드 연동<br>- 즐겨찾기 버튼 추가<br>- `/teams`, `/favorites` 페이지 구현 |
+| **애니메이션 및 전환 효과** | 부드러운 카드 hover / 페이지 전환       | - `Framer Motion` 또는 Tailwind `transition` 활용            |
+| **오프라인 지원 (PWA)**     | 오프라인에서도 일부 기능 사용           | - Next.js PWA 구성<br>- API 응답 및 자산 캐싱 전략 적용      |
+| **고급 검색 기능**          | 이름 외에도 ID, 유사 검색 지원          | - `SearchBar.tsx` 개선<br>- 클라이언트 검색 알고리즘 추가    |
+| **진화 정보 표시**          | 포켓몬의 진화 체계를 시각화             | - PokeAPI 진화 데이터 요청<br>- `PokemonDetailPage.tsx` UI 추가 |
+| **능력치 시각화**           | 차트로 능력치 표현                      | - `Recharts` 또는 `Chart.js` 연동<br>- 상세 페이지에 능력치 차트 추가 |
+| **접근성 개선 (A11y)**      | 키보드 네비게이션 및 스크린 리더 지원   | - 접근성 진단 도구로 점검<br>- ARIA 속성 및 키보드 네비게이션 구현 |
 
-필터 결과를 목록에 반영
+---
 
-2. 정렬 기능
-설명: ID, 이름, 능력치 등 기준으로 정렬
+## 🧱 기술 스택
 
-작업:
+| 구분          | 사용 기술                      |
+| ------------- | ------------------------------ |
+| **Framework** | Next.js (App Router)           |
+| **Language**  | TypeScript                     |
+| **Styling**   | Tailwind CSS                   |
+| **API**       | [PokeAPI](https://pokeapi.co/) |
+| **Animation** | Framer Motion (예정)           |
+| **Theme**     | next-themes (예정)             |
 
-정렬 UI 요소 추가
+---
 
-클라이언트 정렬 또는 API 정렬 기능 구현
+## 📷 미리보기 (예시)
 
-3. 다크 모드
-설명: 라이트/다크 테마 토글 지원
+> 준비 중 — 추후 스크린샷 또는 GIF 추가 예정  
+> *(포켓몬 카드 hover, 검색, 필터 UI, 상세 페이지 전환)*
 
-작업:
+---
 
-next-themes 또는 CSS 변수 방식으로 테마 전환
+## 📅 업데이트 로그
 
-Header.tsx에 토글 버튼 추가
+| 날짜     | 내용                                   |
+| -------- | -------------------------------------- |
+| `v0.1.0` | 프로젝트 초기 세팅 및 목록 페이지 구현 |
+| `v0.2.0` | 상세 페이지, 검색 기능 추가            |
+| `v0.3.0` | 세대별 필터 및 반응형 디자인 적용      |
 
-Tailwind 다크 모드 스타일 적용
+---
 
-4. 유저 팀/즐겨찾기
-설명: 사용자가 포켓몬을 저장하여 팀 구성 또는 즐겨찾기 가능
+## 🧑‍💻 개발자 메모
 
-작업:
+- PokeAPI는 무료이지만, 응답 속도가 느릴 수 있어 **SSR + 캐싱 전략** 검토 중  
+- API 스펙 참고: [https://pokeapi.co/docs/v2](https://pokeapi.co/docs/v2)
+- 추후 Vercel 배포 예정
 
-로컬 스토리지 또는 간단한 백엔드 연동
+---
 
-카드 및 상세 페이지에 즐겨찾기 버튼 추가
-
-/teams, /favorites 페이지 구현
-
-5. 애니메이션 및 전환 효과
-설명: 페이지 전환, 카드 hover 시 부드러운 효과 추가
-
-작업:
-
-Framer Motion 등 Next.js 지원 애니메이션 라이브러리 조사
-
-Tailwind transition, animation 클래스 적용
-
-6. 오프라인 지원 (PWA)
-설명: 오프라인에서도 앱 일부 기능 사용 가능하게 만들기
-
-작업:
-
-Next.js PWA 구성
-
-API 응답 및 자산 캐싱 전략 적용
-
-7. 고급 검색 기능
-설명: 이름 외에도 ID 검색, 유사 검색(Fuzzy search) 등 지원
-
-작업:
-
-SearchBar.tsx 개선
-
-pokeapi.ts 수정 또는 클라이언트 검색 알고리즘 추가
-
-8. 진화 정보 표시
-설명: 포켓몬의 진화 체계를 시각적으로 보여줌
-
-작업:
-
-PokeAPI에서 진화 체계 데이터 요청
-
-PokemonDetailPage.tsx에 진화 체계 UI 추가
-
-9. 능력치 시각화
-설명: 능력치를 차트로 표현
-
-작업:
-
-Recharts, Chart.js 등 차트 라이브러리 연동
-
-PokemonDetailPage.tsx에서 능력치 차트 추가
-
-10. 접근성 개선
-설명: 키보드 네비게이션, 스크린 리더 등 고려한 접근성 강화
-
-작업:
-
-접근성 진단 도구로 점검
-
-ARIA 속성 및 키보드 네비게이션 구현
-
+**💡 Made with ❤️ using Next.js, TypeScript, and Tailwind CSS**
