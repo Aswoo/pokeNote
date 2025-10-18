@@ -1,0 +1,274 @@
+# Quiz Game Rules
+
+## Game State Management
+- Implement proper game state management
+- Use localStorage for high scores
+- Handle timer logic with useEffect
+- Implement proper game reset functionality
+
+## Game State Interface
+```typescript
+interface QuizState {
+  pokemon: Pokemon | null;
+  guess: string;
+  isRevealed: boolean;
+  message: string;
+  isLoading: boolean;
+  score: number;
+  streak: number;
+  highScore: number;
+  timeLeft: number;
+  isHintUsed: boolean;
+}
+
+type QuizAction = 
+  | { type: 'SET_POKEMON'; payload: Pokemon }
+  | { type: 'SET_GUESS'; payload: string }
+  | { type: 'REVEAL_ANSWER' }
+  | { type: 'SET_MESSAGE'; payload: string }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'CORRECT_ANSWER' }
+  | { type: 'WRONG_ANSWER' }
+  | { type: 'TICK' }
+  | { type: 'RESET' }
+  | { type: 'USE_HINT' };
+```
+
+## Game Reducer
+```typescript
+const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
+  switch (action.type) {
+    case 'SET_POKEMON':
+      return { ...state, pokemon: action.payload };
+    case 'SET_GUESS':
+      return { ...state, guess: action.payload };
+    case 'REVEAL_ANSWER':
+      return { ...state, isRevealed: true };
+    case 'SET_MESSAGE':
+      return { ...state, message: action.payload };
+    case 'SET_LOADING':
+      return { ...state, isLoading: action.payload };
+    case 'CORRECT_ANSWER':
+      return {
+        ...state,
+        score: state.score + 1,
+        streak: state.streak + 1,
+        highScore: Math.max(state.highScore, state.score + 1),
+        isRevealed: true,
+        message: '정답입니다!'
+      };
+    case 'WRONG_ANSWER':
+      return {
+        ...state,
+        streak: 0,
+        isRevealed: true,
+        message: `아쉽네요! 정답은 ${state.pokemon?.name}입니다.`
+      };
+    case 'TICK':
+      return {
+        ...state,
+        timeLeft: Math.max(0, state.timeLeft - 1)
+      };
+    case 'RESET':
+      return {
+        ...state,
+        pokemon: null,
+        guess: '',
+        isRevealed: false,
+        message: '',
+        timeLeft: 30,
+        isHintUsed: false
+      };
+    case 'USE_HINT':
+      return { ...state, isHintUsed: true };
+    default:
+      return state;
+  }
+};
+```
+
+## Game Hook
+```typescript
+export const useQuizGame = () => {
+  const [state, dispatch] = useReducer(quizReducer, {
+    pokemon: null,
+    guess: '',
+    isRevealed: false,
+    message: '',
+    isLoading: true,
+    score: 0,
+    streak: 0,
+    highScore: 0,
+    timeLeft: 30,
+    isHintUsed: false
+  });
+
+  // Load high score from localStorage
+  useEffect(() => {
+    const savedHighScore = localStorage.getItem('pokemonQuizHighScore');
+    if (savedHighScore) {
+      dispatch({ type: 'SET_HIGH_SCORE', payload: parseInt(savedHighScore, 10) });
+    }
+  }, []);
+
+  // Save high score to localStorage
+  useEffect(() => {
+    if (state.highScore > 0) {
+      localStorage.setItem('pokemonQuizHighScore', state.highScore.toString());
+    }
+  }, [state.highScore]);
+
+  // Timer logic
+  useEffect(() => {
+    if (!state.isLoading && !state.isRevealed && state.timeLeft > 0) {
+      const timerId = setInterval(() => {
+        dispatch({ type: 'TICK' });
+      }, 1000);
+      return () => clearInterval(timerId);
+    } else if (state.timeLeft === 0) {
+      dispatch({ type: 'WRONG_ANSWER' });
+    }
+  }, [state.isLoading, state.isRevealed, state.timeLeft]);
+
+  const fetchRandomPokemon = useCallback(async () => {
+    dispatch({ type: 'SET_LOADING', payload: true });
+    dispatch({ type: 'RESET' });
+
+    try {
+      const randomId = Math.floor(Math.random() * 1025) + 1;
+      const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
+      const pokemon: Pokemon = {
+        name: response.data.name,
+        sprite: response.data.sprites.front_default,
+        types: response.data.types.map((typeInfo: any) => typeInfo.type.name)
+      };
+      dispatch({ type: 'SET_POKEMON', payload: pokemon });
+    } catch (error) {
+      dispatch({ type: 'SET_MESSAGE', payload: 'Failed to load a Pokémon. Please try again.' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }, []);
+
+  const handleGuess = useCallback((timeout = false) => {
+    if (state.isRevealed) return;
+
+    const isCorrect = state.guess.toLowerCase() === state.pokemon?.name.toLowerCase();
+    
+    if (isCorrect) {
+      dispatch({ type: 'CORRECT_ANSWER' });
+    } else {
+      dispatch({ type: 'WRONG_ANSWER' });
+    }
+  }, [state.guess, state.pokemon, state.isRevealed]);
+
+  const useHint = useCallback(() => {
+    if (state.isHintUsed || !state.pokemon) return;
+    
+    dispatch({ type: 'USE_HINT' });
+    dispatch({ type: 'SET_MESSAGE', payload: `힌트: ${state.pokemon.name.charAt(0).toUpperCase()}로 시작합니다.` });
+  }, [state.isHintUsed, state.pokemon]);
+
+  return {
+    state,
+    fetchRandomPokemon,
+    handleGuess,
+    useHint,
+    setGuess: (guess: string) => dispatch({ type: 'SET_GUESS', payload: guess })
+  };
+};
+```
+
+## Game Component
+```typescript
+export const QuizGame = () => {
+  const { state, fetchRandomPokemon, handleGuess, useHint, setGuess } = useQuizGame();
+
+  useEffect(() => {
+    fetchRandomPokemon();
+  }, [fetchRandomPokemon]);
+
+  return (
+    <div className="max-w-2xl mx-auto p-6">
+      <div className="text-center mb-6">
+        <h1 className="text-3xl font-bold mb-4">포켓몬 퀴즈</h1>
+        <div className="flex justify-center gap-8 text-lg">
+          <span>점수: {state.score}</span>
+          <span>연속: {state.streak}</span>
+          <span>최고: {state.highScore}</span>
+          <span>시간: {state.timeLeft}초</span>
+        </div>
+      </div>
+
+      {state.isLoading ? (
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto"></div>
+          <p className="mt-4">포켓몬을 불러오는 중...</p>
+        </div>
+      ) : (
+        <div className="text-center">
+          <div className="mb-6">
+            <img
+              src={state.pokemon?.sprite}
+              alt="포켓몬"
+              className={`mx-auto h-48 w-48 ${
+                state.isRevealed ? 'opacity-100' : 'opacity-0'
+              } transition-opacity duration-500`}
+              style={{
+                filter: state.isRevealed ? 'none' : 'brightness(0)'
+              }}
+            />
+          </div>
+
+          <div className="mb-6">
+            <input
+              type="text"
+              value={state.guess}
+              onChange={(e) => setGuess(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && handleGuess()}
+              placeholder="포켓몬 이름을 입력하세요"
+              className="w-full max-w-md px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={state.isRevealed}
+            />
+          </div>
+
+          <div className="flex justify-center gap-4 mb-6">
+            <button
+              onClick={() => handleGuess()}
+              disabled={state.isRevealed || !state.guess}
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+            >
+              제출
+            </button>
+            <button
+              onClick={useHint}
+              disabled={state.isHintUsed || state.isRevealed}
+              className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:opacity-50"
+            >
+              힌트
+            </button>
+            <button
+              onClick={fetchRandomPokemon}
+              className="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
+            >
+              다음 문제
+            </button>
+          </div>
+
+          {state.message && (
+            <div className="text-lg font-medium text-gray-700 dark:text-gray-300">
+              {state.message}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+## Avoid
+- Don't forget to cleanup timers
+- Don't ignore localStorage errors
+- Don't create memory leaks with event listeners
+- Don't forget to handle loading and error states

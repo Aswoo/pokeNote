@@ -1,7 +1,7 @@
 
 import type { Meta, StoryObj } from '@storybook/react';
 import PokemonCard from './PokemonCard';
-import { Pokemon } from '@/shared/api/pokeapi';
+import type { Pokemon } from '@/shared/types/pokemon';
 
 const meta: Meta<typeof PokemonCard> = {
   title: 'Entities/Pokemon/PokemonCard',

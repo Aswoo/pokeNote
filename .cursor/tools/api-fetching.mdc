@@ -1,0 +1,321 @@
+# API Fetching Rules
+
+## HTTP Client Setup
+- Use Axios for HTTP requests
+- Implement proper error handling with try-catch
+- Use `Promise.all` for parallel requests
+- Cache API responses when appropriate
+- Implement loading and error states
+
+## Axios Configuration
+```typescript
+// shared/api/axios.ts
+import axios from 'axios';
+
+const API_BASE_URL = 'https://pokeapi.co/api/v2';
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`Making ${config.method?.toUpperCase()} request to ${config.url}`);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', error);
+    return Promise.reject(error);
+  }
+);
+```
+
+## API Functions
+```typescript
+// shared/api/pokeapi.ts
+import { apiClient } from './axios';
+
+export const getPokemonList = async (
+  offset: number = 0,
+  limit: number = 20,
+  generationId?: number
+): Promise<PokemonListResponse> => {
+  try {
+    if (generationId) {
+      const generationResponse = await apiClient.get(`/generation/${generationId}`);
+      const pokemonSpecies = generationResponse.data.pokemon_species;
+      const paginatedSpecies = pokemonSpecies.slice(offset, offset + limit);
+      
+      const pokemonUrls = paginatedSpecies.map((species: any) => {
+        const id = species.url.split('/').slice(-2, -1)[0];
+        return `${API_BASE_URL}/pokemon/${id}/`;
+      });
+      
+      const detailedPokemonPromises = pokemonUrls.map((url: string) => 
+        apiClient.get(url)
+      );
+      const detailedPokemonResponses = await Promise.all(detailedPokemonPromises);
+      
+      return {
+        count: pokemonSpecies.length,
+        next: offset + limit < pokemonSpecies.length ? 'true' : null,
+        previous: offset > 0 ? 'true' : null,
+        results: detailedPokemonResponses.map((res) => ({
+          name: res.data.name,
+          url: `${API_BASE_URL}/pokemon/${res.data.id}/`,
+        })),
+      };
+    }
+    
+    const response = await apiClient.get<PokemonListResponse>(
+      `/pokemon?offset=${offset}&limit=${limit}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon list: ${error}`);
+  }
+};
+
+export const getPokemonDetails = async (
+  nameOrId: string | number
+): Promise<Pokemon> => {
+  try {
+    const response = await apiClient.get<Pokemon>(`/pokemon/${nameOrId}`);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon details: ${error}`);
+  }
+};
+```
+
+## Parallel Requests
+```typescript
+// Good: Parallel API calls
+export const getPokemonWithDetails = async (
+  pokemonList: PokemonListItem[]
+): Promise<Pokemon[]> => {
+  try {
+    const promises = pokemonList.map(pokemon => 
+      getPokemonDetails(pokemon.name)
+    );
+    
+    return await Promise.all(promises);
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon details: ${error}`);
+  }
+};
+
+// Good: Batch requests
+export const getMultiplePokemon = async (ids: string[]): Promise<Pokemon[]> => {
+  try {
+    const promises = ids.map(id => getPokemonDetails(id));
+    return await Promise.all(promises);
+  } catch (error) {
+    throw new Error(`Failed to fetch multiple Pokemon: ${error}`);
+  }
+};
+```
+
+## Caching Strategy
+```typescript
+// shared/api/cache.ts
+class ApiCache {
+  private cache = new Map<string, { data: any; timestamp: number }>();
+  private ttl = 5 * 60 * 1000; // 5 minutes
+
+  set(key: string, data: any): void {
+    this.cache.set(key, {
+      data,
+      timestamp: Date.now()
+    });
+  }
+
+  get(key: string): any | null {
+    const item = this.cache.get(key);
+    if (!item) return null;
+    
+    if (Date.now() - item.timestamp > this.ttl) {
+      this.cache.delete(key);
+      return null;
+    }
+    
+    return item.data;
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+export const apiCache = new ApiCache();
+
+// Cached API function
+export const getCachedPokemonDetails = async (
+  nameOrId: string | number
+): Promise<Pokemon> => {
+  const cacheKey = `pokemon_${nameOrId}`;
+  const cached = apiCache.get(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
+  const pokemon = await getPokemonDetails(nameOrId);
+  apiCache.set(cacheKey, pokemon);
+  return pokemon;
+};
+```
+
+## Loading States
+```typescript
+// shared/hooks/useApi.ts
+export const useApi = <T>(
+  apiFunction: () => Promise<T>,
+  dependencies: any[] = []
+) => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await apiFunction();
+        setData(result);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'An error occurred');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, dependencies);
+
+  return { data, loading, error };
+};
+```
+
+## Error Handling
+```typescript
+// shared/api/errorHandler.ts
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export const handleApiError = (error: any): ApiError => {
+  if (error.response) {
+    const status = error.response.status;
+    const message = error.response.data?.message || 'Server error occurred';
+    return new ApiError(message, status);
+  } else if (error.request) {
+    return new ApiError('Network error occurred', 0, 'NETWORK_ERROR');
+  } else {
+    return new ApiError('An unexpected error occurred', 0, 'UNKNOWN_ERROR');
+  }
+};
+```
+
+## Request Cancellation
+```typescript
+// shared/hooks/useCancellableApi.ts
+export const useCancellableApi = <T>(
+  apiFunction: (signal: AbortSignal) => Promise<T>,
+  dependencies: any[] = []
+) => {
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const result = await apiFunction(controller.signal);
+        setData(result);
+      } catch (err) {
+        if (err.name !== 'AbortError') {
+          setError(err instanceof Error ? err.message : 'An error occurred');
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+
+    return () => {
+      controller.abort();
+    };
+  }, dependencies);
+
+  return { data, loading, error };
+};
+```
+
+## Retry Logic
+```typescript
+// shared/utils/retry.ts
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  maxAttempts: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt === maxAttempts) {
+        throw lastError;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+  
+  throw lastError!;
+};
+
+// Usage
+export const getPokemonWithRetry = async (id: string): Promise<Pokemon> => {
+  return retry(() => getPokemonDetails(id), 3, 1000);
+};
+```
+
+## Avoid
+- Don't forget to handle loading and error states
+- Don't ignore network errors
+- Don't create memory leaks with uncancelled requests
+- Don't forget to implement proper caching
+- Don't ignore request timeouts

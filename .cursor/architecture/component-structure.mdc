@@ -1,0 +1,108 @@
+# Component Structure Rules
+
+## File Organization
+- Keep components small and focused (max 200 lines)
+- Extract custom hooks for reusable logic
+- Use barrel exports (`index.ts`) for clean imports
+- Group related files in folders
+
+## Component Structure
+```typescript
+// 1. Imports
+import React, { useState, useEffect, useCallback } from 'react';
+import { Pokemon } from '@/shared/types';
+import { getPokemonDetails } from '@/shared/api';
+
+// 2. Types/Interfaces
+interface PokemonCardProps {
+  pokemon: Pokemon;
+  onSelect?: (pokemon: Pokemon) => void;
+}
+
+// 3. Component
+export const PokemonCard: React.FC<PokemonCardProps> = ({ 
+  pokemon, 
+  onSelect 
+}) => {
+  // 4. State
+  const [isHovered, setIsHovered] = useState(false);
+  
+  // 5. Effects
+  useEffect(() => {
+    // Side effects
+  }, []);
+  
+  // 6. Event handlers
+  const handleClick = useCallback(() => {
+    onSelect?.(pokemon);
+  }, [pokemon, onSelect]);
+  
+  // 7. Render
+  return (
+    <div onClick={handleClick}>
+      {/* JSX content */}
+    </div>
+  );
+};
+```
+
+## Custom Hooks
+```typescript
+// hooks/usePokemonData.ts
+export const usePokemonData = (id: string) => {
+  const [pokemon, setPokemon] = useState<Pokemon | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchPokemon = async () => {
+      try {
+        setLoading(true);
+        const data = await getPokemonDetails(id);
+        setPokemon(data);
+      } catch (err) {
+        setError('Failed to fetch Pokemon');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPokemon();
+  }, [id]);
+
+  return { pokemon, loading, error };
+};
+```
+
+## Barrel Exports
+```typescript
+// entities/pokemon/index.ts
+export { PokemonCard } from './ui/PokemonCard';
+export { PokemonType } from './ui/PokemonType';
+export { PokemonStat } from './ui/PokemonStat';
+export type { Pokemon, PokemonType as PokemonTypeData } from './types';
+```
+
+## Folder Structure
+```
+entities/pokemon/
+├── ui/
+│   ├── PokemonCard.tsx
+│   ├── PokemonCard.stories.tsx
+│   └── PokemonType.tsx
+├── types/
+│   └── index.ts
+└── index.ts
+```
+
+## Naming Conventions
+- Components: PascalCase (`PokemonCard`)
+- Hooks: camelCase starting with `use` (`usePokemonData`)
+- Files: PascalCase for components, camelCase for utilities
+- Folders: kebab-case (`pokemon-detail`)
+
+## Avoid
+- Don't create overly complex components
+- Don't mix UI and business logic
+- Don't forget to export from index files
+- Don't create deep folder nesting

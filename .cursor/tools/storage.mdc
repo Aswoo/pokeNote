@@ -1,0 +1,403 @@
+# Storage Rules
+
+## Storage Strategy
+- Use localStorage for persistent data
+- Use sessionStorage for temporary data
+- Implement proper error handling
+- Use TypeScript for type safety
+- Implement data validation
+
+## LocalStorage Hook
+```typescript
+// shared/hooks/useLocalStorage.ts
+import { useState, useEffect, useCallback } from 'react';
+
+export const useLocalStorage = <T>(
+  key: string,
+  initialValue: T
+): [T, (value: T | ((val: T) => T)) => void, () => void] => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  const setValue = useCallback((value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  }, [key, storedValue]);
+
+  const removeValue = useCallback(() => {
+    try {
+      setStoredValue(initialValue);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error(`Error removing localStorage key "${key}":`, error);
+    }
+  }, [key, initialValue]);
+
+  return [storedValue, setValue, removeValue];
+};
+```
+
+## SessionStorage Hook
+```typescript
+// shared/hooks/useSessionStorage.ts
+export const useSessionStorage = <T>(
+  key: string,
+  initialValue: T
+): [T, (value: T | ((val: T) => T)) => void, () => void] => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    
+    try {
+      const item = window.sessionStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(`Error reading sessionStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  const setValue = useCallback((value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.error(`Error setting sessionStorage key "${key}":`, error);
+    }
+  }, [key, storedValue]);
+
+  const removeValue = useCallback(() => {
+    try {
+      setStoredValue(initialValue);
+      if (typeof window !== 'undefined') {
+        window.sessionStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error(`Error removing sessionStorage key "${key}":`, error);
+    }
+  }, [key, initialValue]);
+
+  return [storedValue, setValue, removeValue];
+};
+```
+
+## Storage Utilities
+```typescript
+// shared/utils/storage.ts
+export class StorageManager {
+  private static instance: StorageManager;
+  private storage: Storage;
+
+  constructor(storage: Storage = localStorage) {
+    this.storage = storage;
+  }
+
+  static getInstance(storage: Storage = localStorage): StorageManager {
+    if (!StorageManager.instance) {
+      StorageManager.instance = new StorageManager(storage);
+    }
+    return StorageManager.instance;
+  }
+
+  set<T>(key: string, value: T): void {
+    try {
+      this.storage.setItem(key, JSON.stringify(value));
+    } catch (error) {
+      console.error(`Error setting storage key "${key}":`, error);
+    }
+  }
+
+  get<T>(key: string, defaultValue: T): T {
+    try {
+      const item = this.storage.getItem(key);
+      return item ? JSON.parse(item) : defaultValue;
+    } catch (error) {
+      console.error(`Error getting storage key "${key}":`, error);
+      return defaultValue;
+    }
+  }
+
+  remove(key: string): void {
+    try {
+      this.storage.removeItem(key);
+    } catch (error) {
+      console.error(`Error removing storage key "${key}":`, error);
+    }
+  }
+
+  clear(): void {
+    try {
+      this.storage.clear();
+    } catch (error) {
+      console.error('Error clearing storage:', error);
+    }
+  }
+
+  keys(): string[] {
+    try {
+      return Object.keys(this.storage);
+    } catch (error) {
+      console.error('Error getting storage keys:', error);
+      return [];
+    }
+  }
+}
+
+export const storage = StorageManager.getInstance();
+export const sessionStorage = StorageManager.getInstance(sessionStorage);
+```
+
+## Pokemon Data Caching
+```typescript
+// shared/api/pokemonCache.ts
+import { storage } from '@/shared/utils/storage';
+
+interface CachedPokemon {
+  data: Pokemon;
+  timestamp: number;
+  ttl: number;
+}
+
+export class PokemonCache {
+  private static readonly TTL = 5 * 60 * 1000; // 5 minutes
+  private static readonly PREFIX = 'pokemon_';
+
+  static set(id: string, pokemon: Pokemon): void {
+    const cached: CachedPokemon = {
+      data: pokemon,
+      timestamp: Date.now(),
+      ttl: this.TTL
+    };
+    
+    storage.set(`${this.PREFIX}${id}`, cached);
+  }
+
+  static get(id: string): Pokemon | null {
+    const cached = storage.get<CachedPokemon>(`${this.PREFIX}${id}`, null);
+    
+    if (!cached) return null;
+    
+    if (Date.now() - cached.timestamp > cached.ttl) {
+      this.remove(id);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  static remove(id: string): void {
+    storage.remove(`${this.PREFIX}${id}`);
+  }
+
+  static clear(): void {
+    const keys = storage.keys().filter(key => key.startsWith(this.PREFIX));
+    keys.forEach(key => storage.remove(key));
+  }
+}
+```
+
+## User Preferences Storage
+```typescript
+// shared/hooks/useUserPreferences.ts
+interface UserPreferences {
+  theme: 'light' | 'dark';
+  language: string;
+  pokemonPerPage: number;
+  showAdvancedStats: boolean;
+  favoritePokemon: string[];
+}
+
+const defaultPreferences: UserPreferences = {
+  theme: 'light',
+  language: 'ko',
+  pokemonPerPage: 20,
+  showAdvancedStats: false,
+  favoritePokemon: []
+};
+
+export const useUserPreferences = () => {
+  const [preferences, setPreferences] = useLocalStorage(
+    'userPreferences',
+    defaultPreferences
+  );
+
+  const updatePreference = useCallback(<K extends keyof UserPreferences>(
+    key: K,
+    value: UserPreferences[K]
+  ) => {
+    setPreferences(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  }, [setPreferences]);
+
+  const addFavoritePokemon = useCallback((pokemonName: string) => {
+    setPreferences(prev => ({
+      ...prev,
+      favoritePokemon: [...prev.favoritePokemon, pokemonName]
+    }));
+  }, [setPreferences]);
+
+  const removeFavoritePokemon = useCallback((pokemonName: string) => {
+    setPreferences(prev => ({
+      ...prev,
+      favoritePokemon: prev.favoritePokemon.filter(name => name !== pokemonName)
+    }));
+  }, [setPreferences]);
+
+  const resetPreferences = useCallback(() => {
+    setPreferences(defaultPreferences);
+  }, [setPreferences]);
+
+  return {
+    preferences,
+    updatePreference,
+    addFavoritePokemon,
+    removeFavoritePokemon,
+    resetPreferences
+  };
+};
+```
+
+## Quiz Game Storage
+```typescript
+// shared/hooks/useQuizStorage.ts
+interface QuizStats {
+  highScore: number;
+  totalGames: number;
+  totalCorrect: number;
+  totalTime: number;
+  bestStreak: number;
+  averageTime: number;
+}
+
+const defaultStats: QuizStats = {
+  highScore: 0,
+  totalGames: 0,
+  totalCorrect: 0,
+  totalTime: 0,
+  bestStreak: 0,
+  averageTime: 0
+};
+
+export const useQuizStorage = () => {
+  const [stats, setStats] = useLocalStorage('quizStats', defaultStats);
+
+  const updateStats = useCallback((gameResult: {
+    score: number;
+    correct: number;
+    time: number;
+    streak: number;
+  }) => {
+    setStats(prev => {
+      const newStats = {
+        ...prev,
+        highScore: Math.max(prev.highScore, gameResult.score),
+        totalGames: prev.totalGames + 1,
+        totalCorrect: prev.totalCorrect + gameResult.correct,
+        totalTime: prev.totalTime + gameResult.time,
+        bestStreak: Math.max(prev.bestStreak, gameResult.streak),
+        averageTime: (prev.totalTime + gameResult.time) / (prev.totalGames + 1)
+      };
+      
+      return newStats;
+    });
+  }, [setStats]);
+
+  const resetStats = useCallback(() => {
+    setStats(defaultStats);
+  }, [setStats]);
+
+  return {
+    stats,
+    updateStats,
+    resetStats
+  };
+};
+```
+
+## Data Validation
+```typescript
+// shared/utils/validation.ts
+export const validatePokemon = (data: any): data is Pokemon => {
+  return (
+    data &&
+    typeof data.id === 'number' &&
+    typeof data.name === 'string' &&
+    Array.isArray(data.types) &&
+    Array.isArray(data.stats)
+  );
+};
+
+export const validateUserPreferences = (data: any): data is UserPreferences => {
+  return (
+    data &&
+    typeof data.theme === 'string' &&
+    ['light', 'dark'].includes(data.theme) &&
+    typeof data.language === 'string' &&
+    typeof data.pokemonPerPage === 'number' &&
+    typeof data.showAdvancedStats === 'boolean' &&
+    Array.isArray(data.favoritePokemon)
+  );
+};
+```
+
+## Storage Migration
+```typescript
+// shared/utils/storageMigration.ts
+export const migrateStorage = () => {
+  const version = storage.get('storageVersion', '1.0.0');
+  
+  if (version === '1.0.0') {
+    // Migrate from v1.0.0 to v1.1.0
+    const oldTheme = storage.get('theme', 'light');
+    const oldLanguage = storage.get('language', 'ko');
+    
+    const newPreferences = {
+      theme: oldTheme,
+      language: oldLanguage,
+      pokemonPerPage: 20,
+      showAdvancedStats: false,
+      favoritePokemon: []
+    };
+    
+    storage.set('userPreferences', newPreferences);
+    storage.remove('theme');
+    storage.remove('language');
+    storage.set('storageVersion', '1.1.0');
+  }
+};
+```
+
+## Avoid
+- Don't store sensitive data in localStorage
+- Don't forget to handle storage errors
+- Don't ignore data validation
+- Don't store large objects without compression
+- Don't forget to implement data migration

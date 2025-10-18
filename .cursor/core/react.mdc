@@ -1,0 +1,58 @@
+# React Rules
+
+## Component Structure
+- Use functional components with hooks
+- Use PascalCase for component names
+- Keep components small and focused
+- Extract custom hooks for reusable logic
+- Use descriptive prop names
+
+## Hooks Usage
+- Use `useState` for local component state
+- Use `useEffect` for side effects
+- Use `useCallback` for event handlers
+- Use `useMemo` for expensive calculations
+- Use `useContext` for global state
+- Always cleanup effects to prevent memory leaks
+
+## Component Examples
+```typescript
+// Good: Functional component with proper typing
+interface PokemonCardProps {
+  pokemon: Pokemon;
+  onSelect?: (pokemon: Pokemon) => void;
+}
+
+export const PokemonCard: React.FC<PokemonCardProps> = ({ 
+  pokemon, 
+  onSelect 
+}) => {
+  const [isHovered, setIsHovered] = useState(false);
+
+  const handleClick = useCallback(() => {
+    onSelect?.(pokemon);
+  }, [pokemon, onSelect]);
+
+  return (
+    <div 
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={handleClick}
+    >
+      {/* Component content */}
+    </div>
+  );
+};
+```
+
+## Performance Optimization
+- Use `React.memo` for expensive components
+- Use `useCallback` for event handlers passed to children
+- Use `useMemo` for expensive calculations
+- Avoid creating objects/functions in render
+
+## Avoid
+- Don't mutate props or state directly
+- Don't forget to cleanup effects
+- Don't create functions in render without useCallback
+- Don't use class components unless necessary

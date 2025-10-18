@@ -1,10 +1,10 @@
 'use client';
 
 import React from 'react';
-import { GenerationListItem } from '@/shared/api/pokeapi';
+import type { GenerationListItem } from '@/shared/types/pokemon';
 
 interface GenerationFilterProps {
-  generations: GenerationListItem[];
+  generations?: GenerationListItem[];
   selectedGeneration: string;
   onSelectGeneration: (url: string) => void;
 }
@@ -22,7 +22,7 @@ const GenerationFilter: React.FC<GenerationFilterProps> = ({
         className="p-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
       >
         <option value="">All Generations</option>
-        {generations.map((gen) => (
+        {generations && Array.isArray(generations) && generations.map((gen) => (
           <option key={gen.name} value={gen.url}>
             {gen.name.replace('generation-', 'Generation ')}
           </option>

@@ -1,0 +1,49 @@
+# TypeScript Rules
+
+## Type Safety
+- Use strict TypeScript with proper type definitions
+- Define interfaces for all props, API responses, and data structures
+- Use type assertions sparingly and prefer type guards
+- Export types and interfaces from dedicated files when reused
+- Use generic types for reusable components and functions
+- Prefer `interface` over `type` for object shapes
+- Use `const assertions` for immutable data
+
+## Type Definitions
+```typescript
+// Good: Interface for object shapes
+interface PokemonCardProps {
+  pokemon: Pokemon;
+  onSelect?: (pokemon: Pokemon) => void;
+}
+
+// Good: Type for unions
+type Theme = 'light' | 'dark';
+
+// Good: Generic types
+interface ApiResponse<T> {
+  data: T;
+  status: number;
+  message: string;
+}
+```
+
+## Type Guards
+```typescript
+// Good: Type guard function
+function isPokemon(obj: any): obj is Pokemon {
+  return obj && typeof obj.name === 'string' && typeof obj.id === 'number';
+}
+
+// Usage
+if (isPokemon(data)) {
+  // data is now typed as Pokemon
+  console.log(data.name);
+}
+```
+
+## Avoid
+- Don't use `any` type
+- Don't use `@ts-ignore` without good reason
+- Don't use type assertions without proper validation
+- Don't create overly complex type definitions

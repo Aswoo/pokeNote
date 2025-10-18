@@ -3,9 +3,11 @@ import {
   getPokemonDetailsWithDamageRelations,
   getPokemonSpecies,
   getEvolutionChain,
+} from "../../../shared/api/pokeapi";
+import type {
   PokemonWithDamageRelations,
   EvolutionChain,
-} from "../../../lib/pokeapi";
+} from "../../../shared/types/pokemon";
 import { notFound } from "next/navigation";
 import { isAxiosError } from "axios";
 import PokemonDetailPageContent from "@/widgets/pokemon-detail/PokemonDetailPageContent";

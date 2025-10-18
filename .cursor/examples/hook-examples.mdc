@@ -1,0 +1,424 @@
+# Hook Examples
+
+## Custom Hooks for Data Fetching
+```typescript
+// shared/hooks/usePokemonData.ts
+import { useState, useEffect, useCallback } from 'react';
+import { Pokemon } from '@/shared/types';
+import { getPokemonDetails } from '@/shared/api/pokeapi';
+
+interface UsePokemonDataReturn {
+  pokemon: Pokemon | null;
+  loading: boolean;
+  error: string | null;
+  refetch: () => void;
+}
+
+export const usePokemonData = (id: string): UsePokemonDataReturn => {
+  const [pokemon, setPokemon] = useState<Pokemon | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchPokemon = useCallback(async () => {
+    if (!id) return;
+    
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await getPokemonDetails(id);
+      setPokemon(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch Pokemon');
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchPokemon();
+  }, [fetchPokemon]);
+
+  return {
+    pokemon,
+    loading,
+    error,
+    refetch: fetchPokemon
+  };
+};
+```
+
+## Local Storage Hook
+```typescript
+// shared/hooks/useLocalStorage.ts
+import { useState, useEffect, useCallback } from 'react';
+
+export const useLocalStorage = <T>(
+  key: string,
+  initialValue: T
+): [T, (value: T | ((val: T) => T)) => void, () => void] => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') {
+      return initialValue;
+    }
+    
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  const setValue = useCallback((value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  }, [key, storedValue]);
+
+  const removeValue = useCallback(() => {
+    try {
+      setStoredValue(initialValue);
+      if (typeof window !== 'undefined') {
+        window.localStorage.removeItem(key);
+      }
+    } catch (error) {
+      console.error(`Error removing localStorage key "${key}":`, error);
+    }
+  }, [key, initialValue]);
+
+  return [storedValue, setValue, removeValue];
+};
+```
+
+## Debounce Hook
+```typescript
+// shared/hooks/useDebounce.ts
+import { useState, useEffect } from 'react';
+
+export const useDebounce = <T>(value: T, delay: number): T => {
+  const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+```
+
+## Intersection Observer Hook
+```typescript
+// shared/hooks/useIntersectionObserver.ts
+import { useEffect, useRef, useState } from 'react';
+
+interface UseIntersectionObserverOptions {
+  threshold?: number;
+  root?: Element | null;
+  rootMargin?: string;
+}
+
+export const useIntersectionObserver = (
+  options: UseIntersectionObserverOptions = {}
+) => {
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const [hasIntersected, setHasIntersected] = useState(false);
+  const ref = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        setIsIntersecting(entry.isIntersecting);
+        if (entry.isIntersecting && !hasIntersected) {
+          setHasIntersected(true);
+        }
+      },
+      {
+        threshold: options.threshold || 0,
+        root: options.root || null,
+        rootMargin: options.rootMargin || '0px'
+      }
+    );
+
+    observer.observe(element);
+
+    return () => {
+      observer.unobserve(element);
+    };
+  }, [options.threshold, options.root, options.rootMargin, hasIntersected]);
+
+  return { ref, isIntersecting, hasIntersected };
+};
+```
+
+## Media Query Hook
+```typescript
+// shared/hooks/useMediaQuery.ts
+import { useState, useEffect } from 'react';
+
+export const useMediaQuery = (query: string): boolean => {
+  const [matches, setMatches] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+
+    const listener = (event: MediaQueryListEvent) => {
+      setMatches(event.matches);
+    };
+
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query]);
+
+  return matches;
+};
+```
+
+## Previous Value Hook
+```typescript
+// shared/hooks/usePrevious.ts
+import { useRef, useEffect } from 'react';
+
+export const usePrevious = <T>(value: T): T | undefined => {
+  const ref = useRef<T>();
+
+  useEffect(() => {
+    ref.current = value;
+  });
+
+  return ref.current;
+};
+```
+
+## Toggle Hook
+```typescript
+// shared/hooks/useToggle.ts
+import { useState, useCallback } from 'react';
+
+export const useToggle = (
+  initialValue: boolean = false
+): [boolean, () => void, (value: boolean) => void] => {
+  const [value, setValue] = useState(initialValue);
+
+  const toggle = useCallback(() => {
+    setValue(prev => !prev);
+  }, []);
+
+  const setToggle = useCallback((newValue: boolean) => {
+    setValue(newValue);
+  }, []);
+
+  return [value, toggle, setToggle];
+};
+```
+
+## Async Hook
+```typescript
+// shared/hooks/useAsync.ts
+import { useState, useEffect, useCallback } from 'react';
+
+interface UseAsyncState<T> {
+  data: T | null;
+  loading: boolean;
+  error: Error | null;
+}
+
+export const useAsync = <T>(
+  asyncFunction: () => Promise<T>,
+  dependencies: any[] = []
+): UseAsyncState<T> & { execute: () => void } => {
+  const [state, setState] = useState<UseAsyncState<T>>({
+    data: null,
+    loading: false,
+    error: null
+  });
+
+  const execute = useCallback(async () => {
+    setState(prev => ({ ...prev, loading: true, error: null }));
+    
+    try {
+      const data = await asyncFunction();
+      setState({ data, loading: false, error: null });
+    } catch (error) {
+      setState({
+        data: null,
+        loading: false,
+        error: error instanceof Error ? error : new Error('Unknown error')
+      });
+    }
+  }, dependencies);
+
+  useEffect(() => {
+    execute();
+  }, [execute]);
+
+  return { ...state, execute };
+};
+```
+
+## Click Outside Hook
+```typescript
+// shared/hooks/useClickOutside.ts
+import { useEffect, useRef } from 'react';
+
+export const useClickOutside = <T extends HTMLElement>(
+  handler: () => void
+) => {
+  const ref = useRef<T>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (ref.current && !ref.current.contains(event.target as Node)) {
+        handler();
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [handler]);
+
+  return ref;
+};
+```
+
+## Window Size Hook
+```typescript
+// shared/hooks/useWindowSize.ts
+import { useState, useEffect } from 'react';
+
+interface WindowSize {
+  width: number;
+  height: number;
+}
+
+export const useWindowSize = (): WindowSize => {
+  const [windowSize, setWindowSize] = useState<WindowSize>({
+    width: 0,
+    height: 0
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleResize = () => {
+      setWindowSize({
+        width: window.innerWidth,
+        height: window.innerHeight
+      });
+    };
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  return windowSize;
+};
+```
+
+## Copy to Clipboard Hook
+```typescript
+// shared/hooks/useCopyToClipboard.ts
+import { useState, useCallback } from 'react';
+
+export const useCopyToClipboard = () => {
+  const [copied, setCopied] = useState(false);
+
+  const copy = useCallback(async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      console.error('Failed to copy text: ', error);
+    }
+  }, []);
+
+  return { copied, copy };
+};
+```
+
+## Form Hook
+```typescript
+// shared/hooks/useForm.ts
+import { useState, useCallback } from 'react';
+
+interface UseFormOptions<T> {
+  initialValues: T;
+  validate?: (values: T) => Partial<Record<keyof T, string>>;
+  onSubmit: (values: T) => void | Promise<void>;
+}
+
+export const useForm = <T extends Record<string, any>>({
+  initialValues,
+  validate,
+  onSubmit
+}: UseFormOptions<T>) => {
+  const [values, setValues] = useState<T>(initialValues);
+  const [errors, setErrors] = useState<Partial<Record<keyof T, string>>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const handleChange = useCallback((name: keyof T, value: any) => {
+    setValues(prev => ({ ...prev, [name]: value }));
+    
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+  }, [errors]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (validate) {
+      const validationErrors = validate(values);
+      if (Object.keys(validationErrors).length > 0) {
+        setErrors(validationErrors);
+        return;
+      }
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await onSubmit(values);
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [values, validate, onSubmit]);
+
+  const reset = useCallback(() => {
+    setValues(initialValues);
+    setErrors({});
+    setIsSubmitting(false);
+  }, [initialValues]);
+
+  return {
+    values,
+    errors,
+    isSubmitting,
+    handleChange,
+    handleSubmit,
+    reset
+  };
+};
+```

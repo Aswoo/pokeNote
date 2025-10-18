@@ -1,0 +1,87 @@
+# Feature-Sliced Design (FSD) Rules
+
+## Layer Structure
+Follow the FSD architecture pattern with clear layer separation:
+
+```
+src/
+├── app/                    # Next.js App Router pages
+├── entities/              # Business entities (Pokemon, User, etc.)
+├── features/              # Business features (filter, search, etc.)
+├── widgets/               # Complex UI blocks (Header, PokemonList, etc.)
+├── shared/                # Shared resources (API, utils, UI kit)
+└── lib/                   # Legacy API module (to be refactored)
+```
+
+## Layer Rules
+
+### Entities Layer
+- Contains business entities and their UI representations
+- Should be independent of other layers
+- Examples: `PokemonCard`, `PokemonType`, `PokemonStat`
+
+```typescript
+// entities/pokemon/ui/PokemonCard.tsx
+export const PokemonCard: React.FC<PokemonCardProps> = ({ pokemon }) => {
+  // Pure UI component for Pokemon entity
+};
+```
+
+### Features Layer
+- Contains business features and their logic
+- Can use entities and shared resources
+- Examples: `GenerationFilter`, `SearchBar`, `PaginationControls`
+
+```typescript
+// features/filter-by-generation/GenerationFilter.tsx
+export const GenerationFilter: React.FC<GenerationFilterProps> = ({ 
+  generations, 
+  selectedGeneration, 
+  onSelectGeneration 
+}) => {
+  // Feature logic for generation filtering
+};
+```
+
+### Widgets Layer
+- Contains complex UI blocks that combine multiple features
+- Can use entities, features, and shared resources
+- Examples: `Header`, `PokemonListPage`, `QuizGame`
+
+```typescript
+// widgets/pokemon-detail/PokemonDetailPage.tsx
+export const PokemonDetailPage: React.FC<PokemonDetailPageProps> = ({ 
+  pokemon 
+}) => {
+  // Complex UI block combining multiple features
+};
+```
+
+### Shared Layer
+- Contains shared resources used across the application
+- Examples: `API`, `utils`, `UI components`, `types`
+
+```typescript
+// shared/api/pokeapi.ts
+export const getPokemonDetails = async (id: string): Promise<Pokemon> => {
+  // Shared API function
+};
+```
+
+## Import Rules
+- Entities can only import from shared
+- Features can import from entities and shared
+- Widgets can import from features, entities, and shared
+- App can import from all layers
+
+## File Naming
+- Use PascalCase for component files: `PokemonCard.tsx`
+- Use camelCase for utility files: `pokeapi.ts`
+- Use descriptive names that reflect the purpose
+- Include `.stories.tsx` for Storybook components
+
+## Avoid
+- Don't create circular dependencies between layers
+- Don't put business logic in entities
+- Don't put UI components in shared layer
+- Don't mix concerns within the same layer

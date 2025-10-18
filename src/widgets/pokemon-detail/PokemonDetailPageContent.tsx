@@ -2,10 +2,10 @@
 
 import React from 'react';
 import Link from 'next/link';
-import {
+import type {
   PokemonWithDamageRelations,
   EvolutionChain,
-} from '@/shared/api/pokeapi';
+} from '@/shared/types/pokemon';
 import EvolutionChainDisplay from '@/entities/pokemon/ui/EvolutionChain';
 import DamageRelationsDisplay from '@/entities/pokemon/ui/DamageRelationsDisplay';
 import StatRadarChart from '@/entities/pokemon/ui/StatRadarChart';

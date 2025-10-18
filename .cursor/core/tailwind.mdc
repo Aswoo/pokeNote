@@ -1,0 +1,92 @@
+# Tailwind CSS Rules
+
+## Utility Classes
+- Use utility classes over custom CSS
+- Implement responsive design with mobile-first approach
+- Use CSS variables for dynamic colors
+- Add dynamic classes to `safelist` in `tailwind.config.ts`
+- Use `@apply` directive sparingly
+
+## Responsive Design
+```typescript
+// Good: Mobile-first responsive design
+<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+  {pokemonList.map(pokemon => (
+    <PokemonCard key={pokemon.id} pokemon={pokemon} />
+  ))}
+</div>
+```
+
+## Dynamic Classes
+```typescript
+// Good: Use safelist for dynamic classes
+const typeColor = `hover:border-${pokemon.types[0].type.name}`;
+const typeShadow = `hover:shadow-${pokemon.types[0].type.name}`;
+
+// Add to tailwind.config.ts safelist
+safelist: [
+  'hover:border-fire',
+  'hover:shadow-fire',
+  'hover:border-water',
+  'hover:shadow-water',
+  // ... all type combinations
+]
+```
+
+## Dark Mode
+```typescript
+// Good: Dark mode implementation
+<div className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white">
+  <h1 className="text-2xl font-bold">Pokemon List</h1>
+</div>
+```
+
+## CSS Variables
+```css
+/* globals.css */
+:root {
+  --type-fire: #ff6b6b;
+  --type-water: #4ecdc4;
+  --type-grass: #45b7d1;
+}
+
+.dark {
+  --type-fire: #ff8a8a;
+  --type-water: #6eddd6;
+  --type-grass: #67c3f3;
+}
+```
+
+## Component Styling
+```typescript
+// Good: Component with Tailwind classes
+export const PokemonCard = ({ pokemon }: { pokemon: Pokemon }) => {
+  const type = pokemon.types[0].type.name;
+  
+  return (
+    <div 
+      className={`
+        bg-white dark:bg-gray-800 
+        rounded-lg shadow-md hover:shadow-lg 
+        transition-all duration-300 
+        hover:scale-105 cursor-pointer
+        border-2 border-transparent
+        hover:border-${type}
+      `}
+      style={{
+        '--type-color': `var(--type-${type})`,
+        borderColor: `var(--type-${type})`,
+        boxShadow: `0 0 20px var(--type-${type})`
+      }}
+    >
+      {/* Card content */}
+    </div>
+  );
+};
+```
+
+## Avoid
+- Don't use inline styles when Tailwind classes work
+- Don't create custom CSS for common patterns
+- Don't forget to add dynamic classes to safelist
+- Don't ignore responsive design principles

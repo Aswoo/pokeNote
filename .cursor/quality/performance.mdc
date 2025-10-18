@@ -1,0 +1,212 @@
+# Performance Optimization Rules
+
+## React Performance
+- Use `React.memo` for expensive components
+- Use `useCallback` for event handlers
+- Use `useMemo` for expensive calculations
+- Optimize images with `next/image`
+- Implement code splitting with dynamic imports
+
+## Memoization
+```typescript
+// Good: Memoized component
+export const PokemonCard = React.memo(({ pokemon, onSelect }: PokemonCardProps) => {
+  const handleClick = useCallback(() => {
+    onSelect?.(pokemon);
+  }, [pokemon, onSelect]);
+
+  return (
+    <div onClick={handleClick}>
+      {/* Component content */}
+    </div>
+  );
+});
+
+// Good: Memoized expensive calculation
+export const PokemonList = ({ pokemonList }: { pokemonList: Pokemon[] }) => {
+  const sortedPokemon = useMemo(() => {
+    return pokemonList.sort((a, b) => a.name.localeCompare(b.name));
+  }, [pokemonList]);
+
+  return (
+    <div>
+      {sortedPokemon.map(pokemon => (
+        <PokemonCard key={pokemon.id} pokemon={pokemon} />
+      ))}
+    </div>
+  );
+};
+```
+
+## Image Optimization
+```typescript
+// Good: Using next/image for optimization
+import Image from 'next/image';
+
+export const PokemonCard = ({ pokemon }: { pokemon: Pokemon }) => {
+  return (
+    <div>
+      <Image
+        src={pokemon.sprites.front_default}
+        alt={pokemon.name}
+        width={200}
+        height={200}
+        priority={false}
+        placeholder="blur"
+        blurDataURL="data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcUFhYaHSUfGhsjHBYWICwgIyYnKSopGR8tMC0oMCUoKSj/2wBDAQcHBwoIChMKChMoGhYaKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCgoKCj/wAARCAABAAEDASIAAhEBAxEB/8QAFQABAQAAAAAAAAAAAAAAAAAAAAv/xAAUEAEAAAAAAAAAAAAAAAAAAAAA/8QAFQEBAQAAAAAAAAAAAAAAAAAAAAX/xAAUEQEAAAAAAAAAAAAAAAAAAAAA/9oADAMBAAIRAxEAPwCdABmX/9k="
+      />
+    </div>
+  );
+};
+```
+
+## Code Splitting
+```typescript
+// Good: Dynamic imports for code splitting
+import { lazy, Suspense } from 'react';
+
+const Pokemon3DViewer = lazy(() => import('./Pokemon3DViewer'));
+const QuizGame = lazy(() => import('./QuizGame'));
+
+export const PokemonDetailPage = ({ pokemon }: { pokemon: Pokemon }) => {
+  return (
+    <div>
+      <Suspense fallback={<div>Loading 3D viewer...</div>}>
+        <Pokemon3DViewer pokemon={pokemon} />
+      </Suspense>
+    </div>
+  );
+};
+```
+
+## Bundle Optimization
+```typescript
+// Good: Tree shaking friendly imports
+import { useState, useEffect, useCallback } from 'react';
+import { getPokemonDetails } from '@/shared/api/pokeapi';
+
+// Avoid: Importing entire libraries
+// import * as React from 'react';
+// import * as API from '@/shared/api/pokeapi';
+```
+
+## API Optimization
+```typescript
+// Good: Parallel API calls
+export const getPokemonWithDetails = async (pokemonList: PokemonListItem[]) => {
+  const promises = pokemonList.map(pokemon => 
+    getPokemonDetails(pokemon.name)
+  );
+  
+  return Promise.all(promises);
+};
+
+// Good: Caching API responses
+const pokemonCache = new Map<string, Pokemon>();
+
+export const getCachedPokemon = async (id: string): Promise<Pokemon> => {
+  if (pokemonCache.has(id)) {
+    return pokemonCache.get(id)!;
+  }
+  
+  const pokemon = await getPokemonDetails(id);
+  pokemonCache.set(id, pokemon);
+  return pokemon;
+};
+```
+
+## Virtual Scrolling
+```typescript
+// Good: Virtual scrolling for large lists
+import { FixedSizeList as List } from 'react-window';
+
+export const VirtualizedPokemonList = ({ pokemonList }: { pokemonList: Pokemon[] }) => {
+  const Row = ({ index, style }: { index: number; style: React.CSSProperties }) => (
+    <div style={style}>
+      <PokemonCard pokemon={pokemonList[index]} />
+    </div>
+  );
+
+  return (
+    <List
+      height={600}
+      itemCount={pokemonList.length}
+      itemSize={200}
+      width="100%"
+    >
+      {Row}
+    </List>
+  );
+};
+```
+
+## Debouncing
+```typescript
+// Good: Debounced search
+import { useDebounce } from '@/shared/hooks/useDebounce';
+
+export const SearchBar = ({ onSearch }: { onSearch: (query: string) => void }) => {
+  const [query, setQuery] = useState('');
+  const debouncedQuery = useDebounce(query, 300);
+
+  useEffect(() => {
+    onSearch(debouncedQuery);
+  }, [debouncedQuery, onSearch]);
+
+  return (
+    <input
+      type="text"
+      value={query}
+      onChange={(e) => setQuery(e.target.value)}
+      placeholder="Search Pokemon..."
+    />
+  );
+};
+```
+
+## Memory Management
+```typescript
+// Good: Cleanup effects
+export const usePokemonData = (id: string) => {
+  const [pokemon, setPokemon] = useState<Pokemon | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const fetchPokemon = async () => {
+      try {
+        setLoading(true);
+        const data = await getPokemonDetails(id);
+        
+        if (!cancelled) {
+          setPokemon(data);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Failed to fetch Pokemon:', error);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchPokemon();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  return { pokemon, loading };
+};
+```
+
+## Avoid
+- Don't create functions in render without useCallback
+- Don't create objects in render without useMemo
+- Don't ignore bundle size
+- Don't forget to cleanup effects
+- Don't use large images without optimization

@@ -1,0 +1,157 @@
+# State Management Rules
+
+## State Management Strategy
+- Use `useState` for local component state
+- Use `useContext` for global state (like theme)
+- Use custom hooks for reusable state logic
+- Store persistent data in `localStorage`
+
+## Local State
+```typescript
+// Good: Local state for component-specific data
+const [isHovered, setIsHovered] = useState(false);
+const [loading, setLoading] = useState(true);
+const [error, setError] = useState<string | null>(null);
+```
+
+## Global State with Context
+```typescript
+// shared/lib/ThemeContext.tsx
+interface ThemeContextType {
+  theme: Theme;
+  toggleTheme: () => void;
+}
+
+const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const ThemeProvider = ({ children }: { children: ReactNode }) => {
+  const [theme, setTheme] = useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('theme');
+      return savedTheme === 'light' || savedTheme === 'dark' ? savedTheme : 'light';
+    }
+    return 'light';
+  });
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+```
+
+## Custom Hooks for State Logic
+```typescript
+// hooks/useLocalStorage.ts
+export const useLocalStorage = <T>(key: string, initialValue: T) => {
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === 'undefined') return initialValue;
+    
+    try {
+      const item = window.localStorage.getItem(key);
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      console.error(`Error reading localStorage key "${key}":`, error);
+      return initialValue;
+    }
+  });
+
+  const setValue = useCallback((value: T | ((val: T) => T)) => {
+    try {
+      const valueToStore = value instanceof Function ? value(storedValue) : value;
+      setStoredValue(valueToStore);
+      
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      console.error(`Error setting localStorage key "${key}":`, error);
+    }
+  }, [key, storedValue]);
+
+  return [storedValue, setValue] as const;
+};
+```
+
+## State Patterns
+```typescript
+// Good: Complex state with useReducer
+interface QuizState {
+  score: number;
+  streak: number;
+  highScore: number;
+  timeLeft: number;
+  isRevealed: boolean;
+}
+
+type QuizAction = 
+  | { type: 'CORRECT_ANSWER' }
+  | { type: 'WRONG_ANSWER' }
+  | { type: 'TICK' }
+  | { type: 'RESET' };
+
+const quizReducer = (state: QuizState, action: QuizAction): QuizState => {
+  switch (action.type) {
+    case 'CORRECT_ANSWER':
+      return {
+        ...state,
+        score: state.score + 1,
+        streak: state.streak + 1,
+        highScore: Math.max(state.highScore, state.score + 1),
+        isRevealed: true
+      };
+    case 'WRONG_ANSWER':
+      return {
+        ...state,
+        streak: 0,
+        isRevealed: true
+      };
+    case 'TICK':
+      return {
+        ...state,
+        timeLeft: Math.max(0, state.timeLeft - 1)
+      };
+    case 'RESET':
+      return {
+        ...state,
+        score: 0,
+        streak: 0,
+        timeLeft: 30,
+        isRevealed: false
+      };
+    default:
+      return state;
+  }
+};
+```
+
+## Performance Optimization
+```typescript
+// Good: Memoized state updates
+const [pokemonList, setPokemonList] = useState<Pokemon[]>([]);
+
+const addPokemon = useCallback((pokemon: Pokemon) => {
+  setPokemonList(prev => [...prev, pokemon]);
+}, []);
+
+const removePokemon = useCallback((id: number) => {
+  setPokemonList(prev => prev.filter(p => p.id !== id));
+}, []);
+```
+
+## Avoid
+- Don't use global state for local component data
+- Don't forget to cleanup effects
+- Don't mutate state directly
+- Don't create unnecessary re-renders

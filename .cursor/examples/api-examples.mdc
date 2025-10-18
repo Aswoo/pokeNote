@@ -1,0 +1,392 @@
+# API Examples
+
+## Basic API Functions
+```typescript
+// shared/api/pokeapi.ts
+import axios from 'axios';
+
+const API_BASE_URL = 'https://pokeapi.co/api/v2';
+
+export const getPokemonList = async (
+  offset: number = 0,
+  limit: number = 20
+): Promise<PokemonListResponse> => {
+  try {
+    const response = await axios.get<PokemonListResponse>(
+      `${API_BASE_URL}/pokemon?offset=${offset}&limit=${limit}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon list: ${error}`);
+  }
+};
+
+export const getPokemonDetails = async (
+  nameOrId: string | number
+): Promise<Pokemon> => {
+  try {
+    const response = await axios.get<Pokemon>(
+      `${API_BASE_URL}/pokemon/${nameOrId}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon details: ${error}`);
+  }
+};
+```
+
+## Cached API Functions
+```typescript
+// shared/api/pokemonCache.ts
+import { storage } from '@/shared/utils/storage';
+
+interface CachedPokemon {
+  data: Pokemon;
+  timestamp: number;
+  ttl: number;
+}
+
+export class PokemonCache {
+  private static readonly TTL = 5 * 60 * 1000; // 5 minutes
+  private static readonly PREFIX = 'pokemon_';
+
+  static set(id: string, pokemon: Pokemon): void {
+    const cached: CachedPokemon = {
+      data: pokemon,
+      timestamp: Date.now(),
+      ttl: this.TTL
+    };
+    storage.set(`${this.PREFIX}${id}`, cached);
+  }
+
+  static get(id: string): Pokemon | null {
+    const cached = storage.get<CachedPokemon>(`${this.PREFIX}${id}`, null);
+    
+    if (!cached) return null;
+    
+    if (Date.now() - cached.timestamp > cached.ttl) {
+      this.remove(id);
+      return null;
+    }
+    
+    return cached.data;
+  }
+
+  static remove(id: string): void {
+    storage.remove(`${this.PREFIX}${id}`);
+  }
+}
+
+export const getCachedPokemonDetails = async (
+  nameOrId: string | number
+): Promise<Pokemon> => {
+  const cacheKey = `${nameOrId}`;
+  const cached = PokemonCache.get(cacheKey);
+  
+  if (cached) {
+    return cached;
+  }
+  
+  const pokemon = await getPokemonDetails(nameOrId);
+  PokemonCache.set(cacheKey, pokemon);
+  return pokemon;
+};
+```
+
+## Parallel API Calls
+```typescript
+// shared/api/pokemonBatch.ts
+export const getPokemonWithDetails = async (
+  pokemonList: PokemonListItem[]
+): Promise<Pokemon[]> => {
+  try {
+    const promises = pokemonList.map(pokemon => 
+      getPokemonDetails(pokemon.name)
+    );
+    
+    return await Promise.all(promises);
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon details: ${error}`);
+  }
+};
+
+export const getMultiplePokemon = async (ids: string[]): Promise<Pokemon[]> => {
+  try {
+    const promises = ids.map(id => getPokemonDetails(id));
+    return await Promise.all(promises);
+  } catch (error) {
+    throw new Error(`Failed to fetch multiple Pokemon: ${error}`);
+  }
+};
+```
+
+## Error Handling API
+```typescript
+// shared/api/errorHandler.ts
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+export const handleApiError = (error: any): ApiError => {
+  if (error.response) {
+    const status = error.response.status;
+    const message = error.response.data?.message || 'Server error occurred';
+    
+    switch (status) {
+      case 400:
+        return new ApiError('잘못된 요청입니다.', status, 'BAD_REQUEST');
+      case 401:
+        return new ApiError('인증이 필요합니다.', status, 'UNAUTHORIZED');
+      case 403:
+        return new ApiError('접근이 거부되었습니다.', status, 'FORBIDDEN');
+      case 404:
+        return new ApiError('요청한 리소스를 찾을 수 없습니다.', status, 'NOT_FOUND');
+      case 429:
+        return new ApiError('요청이 너무 많습니다. 잠시 후 다시 시도해주세요.', status, 'TOO_MANY_REQUESTS');
+      case 500:
+        return new ApiError('서버 오류가 발생했습니다.', status, 'INTERNAL_SERVER_ERROR');
+      default:
+        return new ApiError(message, status);
+    }
+  } else if (error.request) {
+    return new ApiError('네트워크 연결을 확인해주세요.', 0, 'NETWORK_ERROR');
+  } else {
+    return new ApiError('예상치 못한 오류가 발생했습니다.', 0, 'UNKNOWN_ERROR');
+  }
+};
+```
+
+## Retry Logic API
+```typescript
+// shared/api/retry.ts
+export const retry = async <T>(
+  fn: () => Promise<T>,
+  maxAttempts: number = 3,
+  delay: number = 1000
+): Promise<T> => {
+  let lastError: Error;
+  
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error as Error;
+      
+      if (attempt === maxAttempts) {
+        throw lastError;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, delay * attempt));
+    }
+  }
+  
+  throw lastError!;
+};
+
+export const getPokemonWithRetry = async (id: string): Promise<Pokemon> => {
+  return retry(() => getPokemonDetails(id), 3, 1000);
+};
+```
+
+## Axios Configuration
+```typescript
+// shared/api/axios.ts
+import axios from 'axios';
+
+const API_BASE_URL = 'https://pokeapi.co/api/v2';
+
+export const apiClient = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// Request interceptor
+apiClient.interceptors.request.use(
+  (config) => {
+    console.log(`Making ${config.method?.toUpperCase()} request to ${config.url}`);
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    console.error('API Error:', error);
+    return Promise.reject(handleApiError(error));
+  }
+);
+```
+
+## Search API
+```typescript
+// shared/api/search.ts
+export const searchPokemon = async (
+  query: string,
+  limit: number = 20
+): Promise<Pokemon[]> => {
+  try {
+    // First, get all Pokemon names
+    const allPokemon = await getPokemonList(0, 1000);
+    
+    // Filter by query
+    const filteredPokemon = allPokemon.results.filter(pokemon =>
+      pokemon.name.toLowerCase().includes(query.toLowerCase())
+    );
+    
+    // Get details for filtered Pokemon
+    const pokemonDetails = await Promise.all(
+      filteredPokemon.slice(0, limit).map(pokemon =>
+        getPokemonDetails(pokemon.name)
+      )
+    );
+    
+    return pokemonDetails;
+  } catch (error) {
+    throw new Error(`Failed to search Pokemon: ${error}`);
+  }
+};
+```
+
+## Generation API
+```typescript
+// shared/api/generation.ts
+export const getGenerations = async (): Promise<GenerationListResponse> => {
+  try {
+    const response = await apiClient.get<GenerationListResponse>('/generation');
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch generations: ${error}`);
+  }
+};
+
+export const getPokemonByGeneration = async (
+  generationId: number,
+  offset: number = 0,
+  limit: number = 20
+): Promise<PokemonListResponse> => {
+  try {
+    const generationResponse = await apiClient.get(`/generation/${generationId}`);
+    const pokemonSpecies = generationResponse.data.pokemon_species;
+    const paginatedSpecies = pokemonSpecies.slice(offset, offset + limit);
+    
+    const pokemonUrls = paginatedSpecies.map((species: any) => {
+      const id = species.url.split('/').slice(-2, -1)[0];
+      return `${API_BASE_URL}/pokemon/${id}/`;
+    });
+    
+    const detailedPokemonPromises = pokemonUrls.map((url: string) => 
+      apiClient.get(url)
+    );
+    const detailedPokemonResponses = await Promise.all(detailedPokemonPromises);
+    
+    return {
+      count: pokemonSpecies.length,
+      next: offset + limit < pokemonSpecies.length ? 'true' : null,
+      previous: offset > 0 ? 'true' : null,
+      results: detailedPokemonResponses.map((res) => ({
+        name: res.data.name,
+        url: `${API_BASE_URL}/pokemon/${res.data.id}/`,
+      })),
+    };
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon by generation: ${error}`);
+  }
+};
+```
+
+## Type API
+```typescript
+// shared/api/type.ts
+export const getPokemonTypes = async (): Promise<TypeListResponse> => {
+  try {
+    const response = await apiClient.get<TypeListResponse>('/type');
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon types: ${error}`);
+  }
+};
+
+export const getPokemonByType = async (
+  typeId: number,
+  offset: number = 0,
+  limit: number = 20
+): Promise<PokemonListResponse> => {
+  try {
+    const typeResponse = await apiClient.get(`/type/${typeId}`);
+    const pokemonList = typeResponse.data.pokemon;
+    const paginatedPokemon = pokemonList.slice(offset, offset + limit);
+    
+    const pokemonDetails = await Promise.all(
+      paginatedPokemon.map((pokemon: any) =>
+        getPokemonDetails(pokemon.pokemon.name)
+      )
+    );
+    
+    return {
+      count: pokemonList.length,
+      next: offset + limit < pokemonList.length ? 'true' : null,
+      previous: offset > 0 ? 'true' : null,
+      results: pokemonDetails.map((pokemon) => ({
+        name: pokemon.name,
+        url: `${API_BASE_URL}/pokemon/${pokemon.id}/`,
+      })),
+    };
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon by type: ${error}`);
+  }
+};
+```
+
+## Evolution API
+```typescript
+// shared/api/evolution.ts
+export const getPokemonSpecies = async (
+  nameOrId: string | number
+): Promise<PokemonSpeciesDetails> => {
+  try {
+    const response = await apiClient.get<PokemonSpeciesDetails>(
+      `/pokemon-species/${nameOrId}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon species: ${error}`);
+  }
+};
+
+export const getEvolutionChain = async (url: string): Promise<EvolutionChain> => {
+  try {
+    const response = await apiClient.get<EvolutionChain>(url);
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch evolution chain: ${error}`);
+  }
+};
+
+export const getPokemonEvolution = async (
+  nameOrId: string | number
+): Promise<EvolutionChain> => {
+  try {
+    const species = await getPokemonSpecies(nameOrId);
+    const evolutionChain = await getEvolutionChain(species.evolution_chain.url);
+    return evolutionChain;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon evolution: ${error}`);
+  }
+};
+```

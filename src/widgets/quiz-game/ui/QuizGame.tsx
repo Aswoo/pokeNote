@@ -1,119 +1,117 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-
-interface Pokemon {
-  name: string;
-  sprite: string;
-  types: string[];
-}
-
-const TIME_LIMIT = 30; // 30 seconds time limit
+import React, { useState } from 'react';
+import { useQuizGame } from '@/shared/hooks';
 
 const QuizGame = () => {
-  const [pokemon, setPokemon] = useState<Pokemon | null>(null);
-  const [guess, setGuess] = useState('');
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [message, setMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
+  const {
+    // 게임 상태
+    pokemon,
+    guess,
+    setGuess,
+    isRevealed,
+    message,
+    isLoading,
+    score,
+    streak,
+    timeLeft,
+    gameStarted,
+    gameEnded,
+    highScore,
+    
+    // 게임 액션
+    startGame,
+    handleGuess,
+    handleKeyPress,
+    resetGame,
+    resetAllStats,
+    
+    // 유틸리티
+    canGuess
+  } = useQuizGame();
 
-  const [score, setScore] = useState(0);
-  const [streak, setStreak] = useState(0);
-  const [highScore, setHighScore] = useState(0);
-
-  const [timeLeft, setTimeLeft] = useState(TIME_LIMIT);
-
-  // New state for hint system
+  // 힌트 시스템을 위한 로컬 상태
   const [isHintUsed, setIsHintUsed] = useState(false);
 
-  useEffect(() => {
-    const savedHighScore = localStorage.getItem('pokemonQuizHighScore');
-    if (savedHighScore) {
-      setHighScore(parseInt(savedHighScore, 10));
-    }
-  }, []);
-
-  const fetchRandomPokemon = async () => {
-    setIsLoading(true);
-    setPokemon(null);
-    setGuess('');
-    setIsRevealed(false);
-    setMessage('');
-    setTimeLeft(TIME_LIMIT);
-    setIsHintUsed(false); // Reset hint
-
-    try {
-      const randomId = Math.floor(Math.random() * 1025) + 1;
-      const response = await axios.get(`https://pokeapi.co/api/v2/pokemon/${randomId}`);
-      const name = response.data.name;
-      const sprite = response.data.sprites.front_default;
-      const types = response.data.types.map((typeInfo: any) => typeInfo.type.name);
-      setPokemon({ name, sprite, types });
-    } catch (error) {
-      console.error("Error fetching Pokémon:", error);
-      setMessage("Failed to load a Pokémon. Please try again.");
-    }
-    setIsLoading(false);
-  };
-
-  useEffect(() => {
-    fetchRandomPokemon();
-  }, []);
-
-  useEffect(() => {
-    if (!isLoading && !isRevealed && timeLeft > 0) {
-      const timerId = setInterval(() => {
-        setTimeLeft((prevTime) => prevTime - 1);
-      }, 1000);
-      return () => clearInterval(timerId);
-    } else if (timeLeft === 0) {
-      handleGuess(true);
-    }
-  }, [isLoading, isRevealed, timeLeft]);
-
-  const handleGuess = (timeout = false) => {
-    if (!pokemon) return;
-
-    if (timeout) {
-      setStreak(0);
-      setMessage(`Time's up! The answer was ${pokemon.name}.`);
-    } else if (guess.toLowerCase() === pokemon.name.toLowerCase()) {
-      const newScore = score + 1;
-      const newStreak = streak + 1;
-      setScore(newScore);
-      setStreak(newStreak);
-      setMessage(`Correct! It's ${pokemon.name}.`);
-
-      if (newScore > highScore) {
-        setHighScore(newScore);
-        localStorage.setItem('pokemonQuizHighScore', newScore.toString());
-      }
-    } else {
-      setStreak(0);
-      setMessage(`Nope! The correct answer was ${pokemon.name}.`);
-    }
-    setIsRevealed(true);
-  };
-
-  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      handleGuess();
+  // 힌트 사용 핸들러
+  const handleHint = () => {
+    if (pokemon && !isHintUsed) {
+      const hint = pokemon.name.charAt(0).toUpperCase() + pokemon.name.charAt(1).toLowerCase();
+      setGuess(hint);
+      setIsHintUsed(true);
     }
   };
+
+  // 게임이 끝났을 때 힌트 상태 리셋
+  React.useEffect(() => {
+    if (gameEnded) {
+      setIsHintUsed(false);
+    }
+  }, [gameEnded]);
+
+  // 게임이 시작되지 않았을 때
+  if (!gameStarted) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4">
+        <h1 className="text-4xl font-bold mb-8 text-center">Who's That Pokémon?</h1>
+        <div className="text-center mb-8">
+          <p className="text-lg mb-4">30초 안에 포켓몬의 이름을 맞춰보세요!</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            최고 점수: {highScore}
+          </p>
+        </div>
+        <button
+          onClick={startGame}
+          className="px-8 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-lg font-semibold"
+        >
+          게임 시작
+        </button>
+      </div>
+    );
+  }
+
+  // 게임이 끝났을 때
+  if (gameEnded) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4">
+        <h1 className="text-4xl font-bold mb-8 text-center">게임 종료!</h1>
+        <div className="text-center mb-8">
+          <p className="text-2xl mb-4">최종 점수: {score}</p>
+          <p className="text-lg mb-2">최고 점수: {highScore}</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            {score === highScore ? '🎉 새로운 최고 점수!' : ''}
+          </p>
+        </div>
+        <div className="flex space-x-4">
+          <button
+            onClick={resetGame}
+            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600"
+          >
+            다시 시작
+          </button>
+          <button
+            onClick={resetAllStats}
+            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            통계 리셋
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100 p-4">
       <div className="absolute top-4 left-4 text-lg">
-        <p>Time Left: {timeLeft}s</p>
+        <p>남은 시간: {timeLeft}초</p>
       </div>
       <div className="absolute top-4 right-4 text-lg text-right">
-        <p>Score: {score}</p>
-        <p>Streak: {streak}</p>
-        <p>High Score: {highScore}</p>
+        <p>점수: {score}</p>
+        <p>연속 정답: {streak}</p>
+        <p>최고 점수: {highScore}</p>
       </div>
 
-      <h1 className="text-4xl font-bold mb-8 text-center">Who's That Pokémon?</h1>
+      <h1 className="text-4xl font-bold mb-8 text-center">이 포켓몬은 누구일까요?</h1>
       
       <div className="w-64 h-64 flex items-center justify-center rounded-lg mb-8">
         {isLoading && <p>Loading...</p>}
@@ -132,39 +130,39 @@ const QuizGame = () => {
             type="text" 
             value={guess}
             onChange={(e) => setGuess(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Enter Pokémon name" 
-            className="px-4 py-2 border rounded-lg text-black"
+            onKeyPress={handleKeyPress}
+            placeholder="포켓몬 이름을 입력하세요" 
+            className="px-4 py-2 border rounded-lg text-black w-64"
           />
-          <div className="flex space-x-4">
+          <div className="flex space-x-4 mt-4">
             <button 
-              onClick={() => handleGuess()}
-              className="mt-4 px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
-              disabled={!guess || isLoading}
+              onClick={handleGuess}
+              className="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:bg-gray-400"
+              disabled={!canGuess || isLoading}
             >
-              Submit
+              정답 제출
             </button>
             <button 
-              onClick={() => setIsHintUsed(true)}
-              className="mt-4 px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:bg-gray-400"
+              onClick={handleHint}
+              className="px-6 py-2 bg-yellow-500 text-white rounded-lg hover:bg-yellow-600 disabled:bg-gray-400"
               disabled={isHintUsed || isLoading}
             >
-              Hint
+              힌트
             </button>
           </div>
           {isHintUsed && pokemon && (
-            <p className="mt-4 text-lg">Hint: This Pokémon's type is {pokemon.types.join(' / ')}.</p>
+            <p className="mt-4 text-lg">힌트: 이 포켓몬의 타입은 {pokemon.types.join(' / ')}입니다.</p>
           )}
         </div>
       ) : (
         <div className="flex flex-col items-center">
           <p className="mt-8 text-2xl font-bold text-center">{message}</p>
-          <button 
-            onClick={fetchRandomPokemon}
-            className="mt-4 px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600"
-          >
-            Play Again
-          </button>
+          <div className="mt-4">
+            <p className="text-lg">정답: {pokemon?.name}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              타입: {pokemon?.types.join(' / ')}
+            </p>
+          </div>
         </div>
       )}
     </div>

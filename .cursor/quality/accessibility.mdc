@@ -1,0 +1,313 @@
+# Accessibility Rules
+
+## WCAG Guidelines
+- Use semantic HTML elements
+- Implement proper ARIA attributes
+- Ensure keyboard navigation
+- Use proper color contrast
+- Test with screen readers
+- Follow WCAG 2.1 AA standards
+
+## Semantic HTML
+```typescript
+// Good: Semantic HTML structure
+export const PokemonCard = ({ pokemon }: { pokemon: Pokemon }) => {
+  return (
+    <article 
+      className="pokemon-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`${pokemon.name} 포켓몬 카드`}
+    >
+      <header>
+        <h2 className="pokemon-name">{pokemon.name}</h2>
+      </header>
+      
+      <main>
+        <img
+          src={pokemon.sprites.front_default}
+          alt={`${pokemon.name}의 이미지`}
+          width={200}
+          height={200}
+        />
+      </main>
+      
+      <footer>
+        <div className="pokemon-types" role="list">
+          {pokemon.types.map((type) => (
+            <span
+              key={type.type.name}
+              className="pokemon-type"
+              role="listitem"
+              aria-label={`${type.type.name} 타입`}
+            >
+              {type.type.name}
+            </span>
+          ))}
+        </div>
+      </footer>
+    </article>
+  );
+};
+```
+
+## ARIA Attributes
+```typescript
+// Good: Proper ARIA attributes
+export const SearchBar = ({ onSearch }: { onSearch: (query: string) => void }) => {
+  const [query, setQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  return (
+    <div className="search-container">
+      <label htmlFor="pokemon-search" className="sr-only">
+        포켓몬 검색
+      </label>
+      <input
+        id="pokemon-search"
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="포켓몬 이름을 입력하세요"
+        aria-describedby="search-help"
+        aria-invalid={query.length > 0 && query.length < 2}
+        aria-expanded={false}
+        autoComplete="off"
+      />
+      <div id="search-help" className="sr-only">
+        최소 2글자 이상 입력해주세요
+      </div>
+      {isLoading && (
+        <div aria-live="polite" className="sr-only">
+          검색 중입니다
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+## Keyboard Navigation
+```typescript
+// Good: Keyboard navigation support
+export const PokemonCard = ({ pokemon, onSelect }: PokemonCardProps) => {
+  const handleKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      onSelect?.(pokemon);
+    }
+  };
+
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      onKeyDown={handleKeyDown}
+      onClick={() => onSelect?.(pokemon)}
+      className="pokemon-card focus:ring-2 focus:ring-blue-500 focus:outline-none"
+    >
+      {/* Card content */}
+    </div>
+  );
+};
+```
+
+## Focus Management
+```typescript
+// Good: Focus management
+export const Modal = ({ isOpen, onClose, children }: ModalProps) => {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      previousFocusRef.current = document.activeElement as HTMLElement;
+      modalRef.current?.focus();
+    } else {
+      previousFocusRef.current?.focus();
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="modal-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="modal-title"
+    >
+      <div
+        ref={modalRef}
+        tabIndex={-1}
+        className="modal-content"
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') {
+            onClose();
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+};
+```
+
+## Color Contrast
+```typescript
+// Good: High contrast colors
+export const PokemonType = ({ type }: { type: string }) => {
+  const getTypeStyles = (type: string) => {
+    const styles = {
+      fire: 'bg-red-500 text-white',
+      water: 'bg-blue-500 text-white',
+      grass: 'bg-green-500 text-white',
+      electric: 'bg-yellow-500 text-black',
+      psychic: 'bg-purple-500 text-white',
+      ice: 'bg-cyan-500 text-white',
+      dragon: 'bg-indigo-500 text-white',
+      dark: 'bg-gray-800 text-white',
+      fairy: 'bg-pink-500 text-white',
+      fighting: 'bg-orange-500 text-white',
+      flying: 'bg-sky-500 text-white',
+      poison: 'bg-violet-500 text-white',
+      ground: 'bg-amber-500 text-black',
+      rock: 'bg-stone-500 text-white',
+      bug: 'bg-lime-500 text-black',
+      ghost: 'bg-slate-500 text-white',
+      steel: 'bg-gray-400 text-black',
+      normal: 'bg-gray-500 text-white'
+    };
+    
+    return styles[type as keyof typeof styles] || 'bg-gray-500 text-white';
+  };
+
+  return (
+    <span
+      className={`px-2 py-1 rounded-full text-sm font-medium ${getTypeStyles(type)}`}
+      style={{
+        minWidth: '60px',
+        textAlign: 'center'
+      }}
+    >
+      {type}
+    </span>
+  );
+};
+```
+
+## Screen Reader Support
+```typescript
+// Good: Screen reader announcements
+export const QuizGame = () => {
+  const [message, setMessage] = useState('');
+  const [announcement, setAnnouncement] = useState('');
+
+  const handleGuess = (guess: string) => {
+    const isCorrect = guess.toLowerCase() === pokemon.name.toLowerCase();
+    
+    if (isCorrect) {
+      setMessage('정답입니다!');
+      setAnnouncement('정답입니다! 다음 문제로 넘어가세요.');
+    } else {
+      setMessage('아쉽네요! 정답은 ' + pokemon.name + '입니다.');
+      setAnnouncement('아쉽네요! 정답은 ' + pokemon.name + '입니다.');
+    }
+  };
+
+  return (
+    <div>
+      {/* Game content */}
+      
+      {/* Screen reader announcements */}
+      <div
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {announcement}
+      </div>
+      
+      {/* Status messages */}
+      {message && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="message"
+        >
+          {message}
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
+## Skip Links
+```typescript
+// Good: Skip links for keyboard navigation
+export const Layout = ({ children }: { children: ReactNode }) => {
+  return (
+    <div>
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-500 text-white px-4 py-2 rounded"
+      >
+        메인 콘텐츠로 건너뛰기
+      </a>
+      
+      <header>
+        <nav role="navigation" aria-label="메인 네비게이션">
+          {/* Navigation content */}
+        </nav>
+      </header>
+      
+      <main id="main-content" tabIndex={-1}>
+        {children}
+      </main>
+    </div>
+  );
+};
+```
+
+## Form Accessibility
+```typescript
+// Good: Accessible form
+export const PokemonForm = ({ onSubmit }: { onSubmit: (data: FormData) => void }) => {
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  return (
+    <form onSubmit={handleSubmit} noValidate>
+      <div className="form-group">
+        <label htmlFor="pokemon-name" className="required">
+          포켓몬 이름
+        </label>
+        <input
+          id="pokemon-name"
+          type="text"
+          required
+          aria-describedby="name-error"
+          aria-invalid={!!errors.name}
+        />
+        {errors.name && (
+          <div id="name-error" role="alert" className="error-message">
+            {errors.name}
+          </div>
+        )}
+      </div>
+      
+      <button type="submit" className="submit-button">
+        제출
+      </button>
+    </form>
+  );
+};
+```
+
+## Avoid
+- Don't use div for interactive elements
+- Don't forget to provide alt text for images
+- Don't ignore keyboard navigation
+- Don't use low contrast colors
+- Don't forget to test with screen readers

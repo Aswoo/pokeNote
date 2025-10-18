@@ -1,0 +1,323 @@
+# Testing Rules
+
+## Testing Strategy
+- Write unit tests with Vitest
+- Create Storybook stories for components
+- Test user interactions and edge cases
+- Mock API calls in tests
+- Test accessibility features
+
+## Unit Testing with Vitest
+```typescript
+// __tests__/PokemonCard.test.tsx
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { PokemonCard } from '@/entities/pokemon/ui/PokemonCard';
+
+const mockPokemon = {
+  id: 1,
+  name: 'pikachu',
+  types: [{ slot: 1, type: { name: 'electric', url: 'https://pokeapi.co/api/v2/type/13/' } }],
+  sprites: { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+  height: 4,
+  weight: 60,
+  stats: [],
+  abilities: [],
+  species: { url: 'https://pokeapi.co/api/v2/pokemon-species/25/' }
+};
+
+describe('PokemonCard', () => {
+  it('renders pokemon name and image', () => {
+    render(<PokemonCard pokemon={mockPokemon} />);
+    
+    expect(screen.getByText('pikachu')).toBeInTheDocument();
+    expect(screen.getByAltText('pikachu')).toBeInTheDocument();
+  });
+
+  it('calls onSelect when clicked', () => {
+    const mockOnSelect = vi.fn();
+    render(<PokemonCard pokemon={mockPokemon} onSelect={mockOnSelect} />);
+    
+    fireEvent.click(screen.getByRole('button'));
+    expect(mockOnSelect).toHaveBeenCalledWith(mockPokemon);
+  });
+
+  it('shows pokemon types', () => {
+    render(<PokemonCard pokemon={mockPokemon} />);
+    
+    expect(screen.getByText('electric')).toBeInTheDocument();
+  });
+});
+```
+
+## Custom Hook Testing
+```typescript
+// __tests__/usePokemonData.test.ts
+import { renderHook, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { usePokemonData } from '@/shared/hooks/usePokemonData';
+import * as api from '@/shared/api/pokeapi';
+
+// Mock the API module
+vi.mock('@/shared/api/pokeapi');
+
+describe('usePokemonData', () => {
+  it('fetches pokemon data successfully', async () => {
+    const mockPokemon = { id: 1, name: 'pikachu' };
+    vi.mocked(api.getPokemonDetails).mockResolvedValue(mockPokemon);
+
+    const { result } = renderHook(() => usePokemonData('1'));
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.pokemon).toBe(null);
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.pokemon).toEqual(mockPokemon);
+      expect(result.current.error).toBe(null);
+    });
+  });
+
+  it('handles API errors', async () => {
+    const mockError = new Error('API Error');
+    vi.mocked(api.getPokemonDetails).mockRejectedValue(mockError);
+
+    const { result } = renderHook(() => usePokemonData('1'));
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+      expect(result.current.pokemon).toBe(null);
+      expect(result.current.error).toBe('API Error');
+    });
+  });
+});
+```
+
+## Storybook Stories
+```typescript
+// PokemonCard.stories.tsx
+import type { Meta, StoryObj } from '@storybook/react';
+import { PokemonCard } from './PokemonCard';
+
+const meta: Meta<typeof PokemonCard> = {
+  title: 'Entities/PokemonCard',
+  component: PokemonCard,
+  parameters: {
+    layout: 'centered',
+  },
+  tags: ['autodocs'],
+  argTypes: {
+    onSelect: { action: 'selected' },
+  },
+};
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const Default: Story = {
+  args: {
+    pokemon: {
+      id: 1,
+      name: 'pikachu',
+      types: [{ slot: 1, type: { name: 'electric', url: 'https://pokeapi.co/api/v2/type/13/' } }],
+      sprites: { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+      height: 4,
+      weight: 60,
+      stats: [],
+      abilities: [],
+      species: { url: 'https://pokeapi.co/api/v2/pokemon-species/25/' }
+    },
+  },
+};
+
+export const Hovered: Story = {
+  args: {
+    pokemon: {
+      id: 1,
+      name: 'pikachu',
+      types: [{ slot: 1, type: { name: 'electric', url: 'https://pokeapi.co/api/v2/type/13/' } }],
+      sprites: { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+      height: 4,
+      weight: 60,
+      stats: [],
+      abilities: [],
+      species: { url: 'https://pokeapi.co/api/v2/pokemon-species/25/' }
+    },
+  },
+  parameters: {
+    pseudo: {
+      hover: true,
+    },
+  },
+};
+
+export const MultipleTypes: Story = {
+  args: {
+    pokemon: {
+      id: 1,
+      name: 'charizard',
+      types: [
+        { slot: 1, type: { name: 'fire', url: 'https://pokeapi.co/api/v2/type/10/' } },
+        { slot: 2, type: { name: 'flying', url: 'https://pokeapi.co/api/v2/type/3/' } }
+      ],
+      sprites: { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/6.png' },
+      height: 17,
+      weight: 905,
+      stats: [],
+      abilities: [],
+      species: { url: 'https://pokeapi.co/api/v2/pokemon-species/6/' }
+    },
+  },
+};
+```
+
+## Integration Testing
+```typescript
+// __tests__/PokemonList.test.tsx
+import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { PokemonListPage } from '@/app/page';
+import * as api from '@/shared/api/pokeapi';
+
+// Mock the API module
+vi.mock('@/shared/api/pokeapi');
+
+describe('PokemonListPage', () => {
+  it('renders pokemon list', async () => {
+    const mockPokemonList = [
+      { id: 1, name: 'pikachu', types: [], sprites: { front_default: 'image1.png' }, height: 4, weight: 60, stats: [], abilities: [], species: { url: 'url1' } },
+      { id: 2, name: 'charizard', types: [], sprites: { front_default: 'image2.png' }, height: 17, weight: 905, stats: [], abilities: [], species: { url: 'url2' } }
+    ];
+
+    vi.mocked(api.getPokemonList).mockResolvedValue({
+      count: 2,
+      next: null,
+      previous: null,
+      results: mockPokemonList
+    });
+
+    vi.mocked(api.getPokemonByUrl).mockImplementation((url: string) => {
+      const id = url.split('/').slice(-2, -1)[0];
+      return Promise.resolve(mockPokemonList[parseInt(id) - 1]);
+    });
+
+    render(<PokemonListPage api={api} />);
+
+    await waitFor(() => {
+      expect(screen.getByText('pikachu')).toBeInTheDocument();
+      expect(screen.getByText('charizard')).toBeInTheDocument();
+    });
+  });
+});
+```
+
+## Accessibility Testing
+```typescript
+// __tests__/accessibility.test.tsx
+import { render } from '@testing-library/react';
+import { describe, it, expect } from 'vitest';
+import { PokemonCard } from '@/entities/pokemon/ui/PokemonCard';
+
+describe('PokemonCard Accessibility', () => {
+  it('has proper ARIA attributes', () => {
+    const mockPokemon = {
+      id: 1,
+      name: 'pikachu',
+      types: [{ slot: 1, type: { name: 'electric', url: 'https://pokeapi.co/api/v2/type/13/' } }],
+      sprites: { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+      height: 4,
+      weight: 60,
+      stats: [],
+      abilities: [],
+      species: { url: 'https://pokeapi.co/api/v2/pokemon-species/25/' }
+    };
+
+    render(<PokemonCard pokemon={mockPokemon} />);
+    
+    const card = screen.getByRole('button');
+    expect(card).toHaveAttribute('aria-label', 'pikachu 포켓몬 카드');
+    expect(card).toHaveAttribute('tabIndex', '0');
+  });
+
+  it('has proper image alt text', () => {
+    const mockPokemon = {
+      id: 1,
+      name: 'pikachu',
+      types: [],
+      sprites: { front_default: 'https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/25.png' },
+      height: 4,
+      weight: 60,
+      stats: [],
+      abilities: [],
+      species: { url: 'https://pokeapi.co/api/v2/pokemon-species/25/' }
+    };
+
+    render(<PokemonCard pokemon={mockPokemon} />);
+    
+    const image = screen.getByAltText('pikachu의 이미지');
+    expect(image).toBeInTheDocument();
+  });
+});
+```
+
+## Mock Setup
+```typescript
+// __tests__/setup.ts
+import { vi } from 'vitest';
+
+// Mock localStorage
+const localStorageMock = {
+  getItem: vi.fn(),
+  setItem: vi.fn(),
+  removeItem: vi.fn(),
+  clear: vi.fn(),
+};
+Object.defineProperty(window, 'localStorage', {
+  value: localStorageMock,
+});
+
+// Mock IntersectionObserver
+global.IntersectionObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+
+// Mock ResizeObserver
+global.ResizeObserver = vi.fn().mockImplementation(() => ({
+  observe: vi.fn(),
+  unobserve: vi.fn(),
+  disconnect: vi.fn(),
+}));
+```
+
+## Test Utilities
+```typescript
+// __tests__/utils/test-utils.tsx
+import { render, RenderOptions } from '@testing-library/react';
+import { ReactElement } from 'react';
+import { ThemeProvider } from '@/shared/lib/ThemeContext';
+
+const AllTheProviders = ({ children }: { children: React.ReactNode }) => {
+  return (
+    <ThemeProvider>
+      {children}
+    </ThemeProvider>
+  );
+};
+
+const customRender = (
+  ui: ReactElement,
+  options?: Omit<RenderOptions, 'wrapper'>
+) => render(ui, { wrapper: AllTheProviders, ...options });
+
+export * from '@testing-library/react';
+export { customRender as render };
+```
+
+## Avoid
+- Don't test implementation details
+- Don't forget to mock external dependencies
+- Don't ignore accessibility testing
+- Don't create brittle tests
+- Don't forget to cleanup after tests

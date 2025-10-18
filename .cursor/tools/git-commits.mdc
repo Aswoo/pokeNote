@@ -1,0 +1,244 @@
+# Git Commit Rules
+
+## Commit Message Format
+- Use conventional commit messages
+- Write descriptive commit messages
+- Keep commits atomic and focused
+- Use meaningful branch names
+- Review code before merging
+
+## Conventional Commits
+```bash
+# Format: <type>(<scope>): <description>
+
+# Examples:
+feat(pokemon): add Pokemon3DViewer component
+fix(api): handle network errors in getPokemonDetails
+docs(readme): update installation instructions
+style(ui): improve PokemonCard hover effects
+refactor(api): extract PokemonCache utility
+test(pokemon): add unit tests for PokemonCard
+chore(deps): update axios to v1.6.0
+perf(api): implement caching for Pokemon data
+ci(github): add automated testing workflow
+```
+
+## Commit Types
+- **feat**: 새로운 기능 추가
+- **fix**: 버그 수정
+- **docs**: 문서 수정
+- **style**: 코드 스타일 변경 (포맷팅, 세미콜론 등)
+- **refactor**: 코드 리팩토링
+- **test**: 테스트 코드 추가/수정
+- **chore**: 빌드 프로세스, 도구, 라이브러리 변경
+- **perf**: 성능 개선
+- **ci**: CI/CD 설정 변경
+
+## Scope Examples
+- **pokemon**: 포켓몬 관련 기능
+- **api**: API 관련 기능
+- **ui**: UI 컴포넌트
+- **theme**: 테마 관련 기능
+- **quiz**: 퀴즈 게임 기능
+- **3d**: 3D 관련 기능
+- **storage**: 저장소 관련 기능
+- **test**: 테스트 관련
+- **deps**: 의존성 관련
+
+## Good Commit Messages
+```bash
+# Good examples:
+feat(pokemon): add Pokemon3DViewer with Three.js integration
+fix(api): handle 404 errors in getPokemonDetails
+docs(readme): add installation and usage instructions
+style(ui): improve PokemonCard hover animations
+refactor(api): extract PokemonCache utility class
+test(pokemon): add unit tests for PokemonCard component
+chore(deps): update Next.js to v15.3.5
+perf(api): implement localStorage caching for Pokemon data
+ci(github): add automated testing on pull requests
+```
+
+## Bad Commit Messages
+```bash
+# Bad examples:
+fix: bug fix
+update: updated code
+WIP: working on feature
+feat: add stuff
+fix: it works now
+refactor: code changes
+```
+
+## Branch Naming
+```bash
+# Format: <type>/<description>
+
+# Examples:
+feature/pokemon-3d-viewer
+feature/quiz-game
+feature/pokemon-favorites
+bugfix/api-error-handling
+bugfix/pokemon-card-hover
+hotfix/critical-api-fix
+refactor/pokemon-cache
+chore/update-dependencies
+docs/update-readme
+test/add-unit-tests
+```
+
+## Commit Workflow
+```bash
+# 1. Create feature branch
+git checkout -b feature/pokemon-3d-viewer
+
+# 2. Make changes and stage them
+git add src/entities/pokemon/ui/Pokemon3DViewer.tsx
+git add src/entities/pokemon/ui/Pokemon3DViewer.stories.tsx
+
+# 3. Commit with descriptive message
+git commit -m "feat(pokemon): add Pokemon3DViewer with Three.js integration
+
+- Add Pokemon3DViewer component using @react-three/fiber
+- Implement 3D model loading and display
+- Add Storybook stories for component documentation
+- Include proper error handling and loading states"
+
+# 4. Push to remote
+git push origin feature/pokemon-3d-viewer
+
+# 5. Create pull request
+# 6. Review and merge
+```
+
+## Atomic Commits
+```bash
+# Good: Atomic commits
+git commit -m "feat(pokemon): add PokemonCard component"
+git commit -m "feat(pokemon): add PokemonCard hover effects"
+git commit -m "feat(pokemon): add PokemonCard accessibility features"
+
+# Bad: Large commit with multiple changes
+git commit -m "feat(pokemon): add PokemonCard with hover effects and accessibility"
+```
+
+## Commit Message Body
+```bash
+# Good: Detailed commit message
+feat(pokemon): add Pokemon3DViewer component
+
+Add a new 3D viewer component for Pokemon using Three.js and React Three Fiber.
+The component includes:
+- 3D model loading and display
+- Orbit controls for user interaction
+- Loading states and error handling
+- Responsive design
+- Accessibility features
+
+Closes #123
+```
+
+## Pre-commit Hooks
+```json
+// package.json
+{
+  "husky": {
+    "hooks": {
+      "pre-commit": "lint-staged",
+      "commit-msg": "commitlint -E HUSKY_GIT_PARAMS"
+    }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
+  }
+}
+```
+
+## Commit Lint Configuration
+```javascript
+// commitlint.config.js
+module.exports = {
+  extends: ['@commitlint/config-conventional'],
+  rules: {
+    'type-enum': [
+      2,
+      'always',
+      [
+        'feat',
+        'fix',
+        'docs',
+        'style',
+        'refactor',
+        'test',
+        'chore',
+        'perf',
+        'ci'
+      ]
+    ],
+    'scope-enum': [
+      2,
+      'always',
+      [
+        'pokemon',
+        'api',
+        'ui',
+        'theme',
+        'quiz',
+        '3d',
+        'storage',
+        'test',
+        'deps',
+        'ci'
+      ]
+    ],
+    'subject-case': [2, 'always', 'lower-case'],
+    'subject-max-length': [2, 'always', 50],
+    'body-max-line-length': [2, 'always', 72]
+  }
+};
+```
+
+## Pull Request Template
+```markdown
+## Description
+Brief description of the changes made.
+
+## Type of Change
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] Documentation update
+- [ ] Code refactoring
+- [ ] Performance improvement
+- [ ] Test addition/update
+
+## Testing
+- [ ] Unit tests pass
+- [ ] Integration tests pass
+- [ ] Manual testing completed
+- [ ] Accessibility testing completed
+
+## Checklist
+- [ ] Code follows project style guidelines
+- [ ] Self-review completed
+- [ ] Code is properly commented
+- [ ] Documentation updated
+- [ ] No console.log statements left
+- [ ] Error handling implemented
+- [ ] Loading states implemented
+```
+
+## Avoid
+- Don't commit broken code
+- Don't use vague commit messages
+- Don't commit large files
+- Don't ignore .gitignore rules
+- Don't commit sensitive information
+- Don't squash commits without good reason
+- Don't force push to main branch

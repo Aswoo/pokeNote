@@ -3,7 +3,8 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
-import { getPokemonByUrl, Pokemon, EvolutionChain, EvolutionChainLink } from '@/shared/api/pokeapi';
+import { getPokemonByUrl } from '@/shared/api/pokeapi';
+import type { Pokemon, EvolutionChain, EvolutionChainLink } from '@/shared/types/pokemon';
 
 interface EvolutionChainProps {
   evolutionChain: EvolutionChain;

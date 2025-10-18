@@ -1,0 +1,174 @@
+# Pokemon Data Rules
+
+## Data Structure
+- Use consistent Pokemon interface across components
+- Implement proper type checking for Pokemon data
+- Handle loading states for Pokemon lists
+- Cache Pokemon data in localStorage when appropriate
+
+## Pokemon Interface
+```typescript
+interface Pokemon {
+  id: number;
+  name: string;
+  height: number;
+  weight: number;
+  types: PokemonType[];
+  stats: PokemonStat[];
+  abilities: PokemonAbility[];
+  sprites: PokemonSprite;
+  species: {
+    url: string;
+  };
+}
+
+interface PokemonType {
+  slot: number;
+  type: {
+    name: string;
+    url: string;
+  };
+}
+
+interface PokemonStat {
+  base_stat: number;
+  effort: number;
+  stat: {
+    name: string;
+    url: string;
+  };
+}
+```
+
+## Data Fetching Patterns
+```typescript
+// Good: API function with proper error handling
+export const getPokemonDetails = async (
+  nameOrId: string | number
+): Promise<Pokemon> => {
+  try {
+    const response = await axios.get<Pokemon>(
+      `${API_BASE_URL}/pokemon/${nameOrId}`
+    );
+    return response.data;
+  } catch (error) {
+    throw new Error(`Failed to fetch Pokemon: ${error}`);
+  }
+};
+
+// Good: Cached data fetching
+export const getCachedPokemon = async (id: string): Promise<Pokemon> => {
+  const cacheKey = `pokemon_${id}`;
+  const cached = localStorage.getItem(cacheKey);
+  
+  if (cached) {
+    return JSON.parse(cached);
+  }
+  
+  const pokemon = await getPokemonDetails(id);
+  localStorage.setItem(cacheKey, JSON.stringify(pokemon));
+  return pokemon;
+};
+```
+
+## Data Processing
+```typescript
+// Good: Data transformation
+export const transformPokemonData = (rawPokemon: any): Pokemon => {
+  return {
+    id: rawPokemon.id,
+    name: rawPokemon.name,
+    height: rawPokemon.height,
+    weight: rawPokemon.weight,
+    types: rawPokemon.types.map((type: any) => ({
+      slot: type.slot,
+      type: {
+        name: type.type.name,
+        url: type.type.url
+      }
+    })),
+    stats: rawPokemon.stats.map((stat: any) => ({
+      base_stat: stat.base_stat,
+      effort: stat.effort,
+      stat: {
+        name: stat.stat.name,
+        url: stat.stat.url
+      }
+    })),
+    abilities: rawPokemon.abilities,
+    sprites: rawPokemon.sprites,
+    species: rawPokemon.species
+  };
+};
+```
+
+## Type Safety
+```typescript
+// Good: Type guard for Pokemon data
+export const isPokemon = (obj: any): obj is Pokemon => {
+  return (
+    obj &&
+    typeof obj.id === 'number' &&
+    typeof obj.name === 'string' &&
+    Array.isArray(obj.types) &&
+    Array.isArray(obj.stats)
+  );
+};
+
+// Good: Type guard for Pokemon list
+export const isPokemonList = (obj: any): obj is Pokemon[] => {
+  return Array.isArray(obj) && obj.every(isPokemon);
+};
+```
+
+## Caching Strategy
+```typescript
+// Good: Cache management
+export const PokemonCache = {
+  set: (key: string, data: Pokemon) => {
+    try {
+      localStorage.setItem(`pokemon_${key}`, JSON.stringify(data));
+    } catch (error) {
+      console.error('Failed to cache Pokemon data:', error);
+    }
+  },
+  
+  get: (key: string): Pokemon | null => {
+    try {
+      const cached = localStorage.getItem(`pokemon_${key}`);
+      return cached ? JSON.parse(cached) : null;
+    } catch (error) {
+      console.error('Failed to retrieve cached Pokemon data:', error);
+      return null;
+    }
+  },
+  
+  clear: () => {
+    const keys = Object.keys(localStorage).filter(key => key.startsWith('pokemon_'));
+    keys.forEach(key => localStorage.removeItem(key));
+  }
+};
+```
+
+## Error Handling
+```typescript
+// Good: Error handling for Pokemon data
+export const handlePokemonError = (error: any): string => {
+  if (error.response?.status === 404) {
+    return 'Pokemon not found';
+  }
+  if (error.response?.status === 500) {
+    return 'Server error. Please try again later.';
+  }
+  if (error.code === 'NETWORK_ERROR') {
+    return 'Network error. Please check your connection.';
+  }
+  return 'An unexpected error occurred';
+};
+```
+
+## Avoid
+- Don't use `any` type for Pokemon data
+- Don't forget to handle loading and error states
+- Don't cache sensitive or frequently changing data
+- Don't ignore data validation
